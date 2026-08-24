@@ -270,8 +270,15 @@ fn compute_view_internal(
             .clamp(app.sidebar_min_width, app.sidebar_max_width)
     };
 
-    let [sidebar_area, main_area] =
-        Layout::horizontal([Constraint::Length(sidebar_w), Constraint::Min(1)]).areas(area);
+    // Fork: `ui.sidebar_divider` reserves a gutter column between the sidebar
+    // and the pane area; the rule itself is drawn in `render_navigation_chrome`.
+    let gutter_w = u16::from(app.sidebar_divider && sidebar_w > 0);
+    let [sidebar_area, _gutter_area, main_area] = Layout::horizontal([
+        Constraint::Length(sidebar_w),
+        Constraint::Length(gutter_w),
+        Constraint::Min(1),
+    ])
+    .areas(area);
 
     let (tab_bar_rect, terminal_area) = app
         .active
@@ -520,6 +527,24 @@ fn render_navigation_chrome(
         } else {
             render_sidebar(app, terminal_runtimes, frame, app.view.sidebar_rect);
         }
+        render_sidebar_divider(app, frame, app.view.sidebar_rect);
+    }
+}
+
+/// Fork: vertical rule in the gutter column reserved next to the sidebar.
+fn render_sidebar_divider(app: &AppState, frame: &mut Frame, sidebar_rect: Rect) {
+    if !app.sidebar_divider {
+        return;
+    }
+    let x = sidebar_rect.x + sidebar_rect.width;
+    let area = frame.area();
+    if x >= area.x + area.width {
+        return;
+    }
+    let style = Style::default().fg(app.palette.surface_dim);
+    let buf = frame.buffer_mut();
+    for y in sidebar_rect.y..sidebar_rect.y + sidebar_rect.height {
+        buf[(x, y)].set_symbol("\u{2502}").set_style(style);
     }
 }
 
@@ -1169,6 +1194,31 @@ mod tests {
             app.workspaces[0].tabs[background_tab].runtimes[&background_pane].current_size(),
             (18, 43)
         );
+    }
+
+    #[test]
+    fn sidebar_divider_reserves_a_gutter_and_draws_a_rule() {
+        let mut app = crate::app::state::AppState::test_new();
+        app.workspaces = vec![Workspace::test_new("one")];
+        app.active = Some(0);
+        app.selected = 0;
+        let area = Rect::new(0, 0, 80, 20);
+
+        compute_view(&mut app, area);
+        let without = app.view.terminal_area.x;
+
+        app.sidebar_divider = true;
+        compute_view(&mut app, area);
+        assert_eq!(app.view.terminal_area.x, without + 1);
+
+        let x = app.view.sidebar_rect.x + app.view.sidebar_rect.width;
+        let backend = TestBackend::new(area.width, area.height);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|frame| render(&app, frame)).unwrap();
+        let buffer = terminal.backend().buffer();
+        for y in app.view.sidebar_rect.y..app.view.sidebar_rect.bottom() {
+            assert_eq!(buffer[(x, y)].symbol(), "\u{2502}", "row {y}");
+        }
     }
 
     #[test]
