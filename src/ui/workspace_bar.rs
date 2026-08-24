@@ -44,6 +44,32 @@ pub(crate) fn workspace_bar_hit_areas(app: &AppState, area: Rect) -> Vec<Rect> {
     rects
 }
 
+/// Width of the trailing " + " cell in the workspace bar.
+pub(crate) const NEW_WORKSPACE_WIDTH: u16 = 3;
+
+/// Workspace cells stop short of the row end so the " + " cell always has room.
+pub(crate) fn workspace_cells_area(area: Rect) -> Rect {
+    Rect {
+        width: area.width.saturating_sub(NEW_WORKSPACE_WIDTH + 1),
+        ..area
+    }
+}
+
+/// " + " cell right after the last workspace, bounded by the full cells row.
+pub(crate) fn workspace_bar_new_hit_area(area: Rect, cells: &[Rect]) -> Rect {
+    if area.width == 0 || area.height == 0 {
+        return Rect::default();
+    }
+    let x = match cells.iter().rev().find(|rect| rect.width > 0) {
+        Some(rect) => rect.x + rect.width + 1,
+        None => area.x,
+    };
+    if x + NEW_WORKSPACE_WIDTH > area.x + area.width {
+        return Rect::default();
+    }
+    Rect::new(x, area.y, NEW_WORKSPACE_WIDTH, 1)
+}
+
 /// Right-aligned clickable buttons for custom commands with a `button` label.
 /// Returns (rect, index into keybinds.custom_commands), right-to-left.
 pub(crate) fn workspace_bar_button_hit_areas(app: &AppState, area: Rect) -> Vec<(Rect, usize)> {
@@ -109,6 +135,17 @@ pub(super) fn render_workspace_bar(app: &AppState, frame: &mut Frame, area: Rect
             Span::styled(format!(" {} ", cell_label(app, idx)), cell_style),
         ]);
         frame.render_widget(Paragraph::new(line), rect);
+    }
+
+    let new_rect = app.view.workspace_bar_new_hit_area;
+    if app.mouse_capture && new_rect.width > 0 {
+        frame.render_widget(
+            Paragraph::new(Span::styled(
+                " + ",
+                Style::default().fg(p.overlay1).bg(p.panel_bg),
+            )),
+            new_rect,
+        );
     }
 
     let button_style = Style::default().fg(panel_contrast_fg(p)).bg(p.overlay1);

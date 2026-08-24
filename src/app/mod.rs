@@ -612,6 +612,7 @@ impl App {
                 workspace_bar_rect: Rect::default(),
                 workspace_bar_hit_areas: Vec::new(),
                 workspace_bar_button_hit_areas: Vec::new(),
+                workspace_bar_new_hit_area: Rect::default(),
                 tab_bar_rect: Rect::default(),
                 tab_hit_areas: Vec::new(),
                 tab_scroll_left_hit_area: Rect::default(),

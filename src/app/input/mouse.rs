@@ -496,6 +496,10 @@ impl AppState {
                     return Some(MouseAction::LaunchCustomCommand { idx });
                 }
 
+                if self.on_workspace_bar_new_button(mouse.column, mouse.row) {
+                    return Some(MouseAction::NewWorkspace);
+                }
+
                 if let Some(ws_idx) = self.workspace_bar_at(mouse.column, mouse.row) {
                     self.mode = Mode::Terminal;
                     return Some(MouseAction::FocusWorkspace { ws_idx });
@@ -1072,6 +1076,22 @@ impl AppState {
                 self.mode = Mode::ContextMenu;
             }
 
+            MouseEventKind::Down(MouseButton::Right)
+                if self.workspace_bar_at(mouse.column, mouse.row).is_some() =>
+            {
+                let Some(ws_idx) = self.workspace_bar_at(mouse.column, mouse.row) else {
+                    return None;
+                };
+                self.selected = ws_idx;
+                self.context_menu = Some(ContextMenuState {
+                    kind: ContextMenuKind::Workspace { ws_idx },
+                    x: mouse.column,
+                    y: mouse.row,
+                    list: MenuListState::new(0),
+                });
+                self.mode = Mode::ContextMenu;
+            }
+
             MouseEventKind::Down(MouseButton::Right) if in_sidebar && !self.sidebar_collapsed => {
                 self.clear_chrome_press(source_id);
                 if self
@@ -1336,6 +1356,15 @@ impl AppState {
                     && col < area.x + area.width)
                     .then_some(*idx)
             })
+    }
+
+    pub(super) fn on_workspace_bar_new_button(&self, col: u16, row: u16) -> bool {
+        let area = self.view.workspace_bar_new_hit_area;
+        area.width > 0
+            && row >= area.y
+            && row < area.y + area.height
+            && col >= area.x
+            && col < area.x + area.width
     }
 
     pub(super) fn workspace_bar_at(&self, col: u16, row: u16) -> Option<usize> {
@@ -4840,5 +4869,37 @@ mod tests {
         };
 
         assert_eq!(wheel_routing(input_state), WheelRouting::HostScroll);
+    }
+
+    #[test]
+    fn workspace_bar_new_button_and_right_click_menu() {
+        let mut app = app_for_mouse_test();
+        app.state.workspaces = vec![Workspace::test_new("a"), Workspace::test_new("b")];
+        app.state.active = Some(0);
+        app.state.selected = 0;
+        app.state.mode = Mode::Terminal;
+        app.state.workspace_bar = true;
+        crate::ui::compute_view(&mut app.state, Rect::new(0, 0, 80, 20));
+
+        let plus = app.state.view.workspace_bar_new_hit_area;
+        assert!(plus.width > 0);
+        let action = app.state.handle_mouse(
+            &mut app.terminal_runtimes,
+            0,
+            mouse(MouseEventKind::Down(MouseButton::Left), plus.x, plus.y),
+        );
+        assert!(matches!(action, Some(MouseAction::NewWorkspace)));
+
+        let cell = app.state.view.workspace_bar_hit_areas[1];
+        app.state.handle_mouse(
+            &mut app.terminal_runtimes,
+            0,
+            mouse(MouseEventKind::Down(MouseButton::Right), cell.x, cell.y),
+        );
+        assert_eq!(app.state.mode, Mode::ContextMenu);
+        assert!(matches!(
+            app.state.context_menu.as_ref().map(|menu| &menu.kind),
+            Some(&ContextMenuKind::Workspace { ws_idx: 1 })
+        ));
     }
 }

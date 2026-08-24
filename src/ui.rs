@@ -244,7 +244,12 @@ fn compute_view_internal(
         ),
         None => workspace_bar_rect,
     };
-    let workspace_bar_hit_areas = workspace_bar::workspace_bar_hit_areas(app, workspace_cells_rect);
+    let workspace_bar_hit_areas = workspace_bar::workspace_bar_hit_areas(
+        app,
+        workspace_bar::workspace_cells_area(workspace_cells_rect),
+    );
+    let workspace_bar_new_hit_area =
+        workspace_bar::workspace_bar_new_hit_area(workspace_cells_rect, &workspace_bar_hit_areas);
 
     let sidebar_w = if app.sidebar_collapsed {
         match app.sidebar_collapsed_mode {
@@ -333,6 +338,7 @@ fn compute_view_internal(
         workspace_bar_rect,
         workspace_bar_hit_areas,
         workspace_bar_button_hit_areas,
+        workspace_bar_new_hit_area,
         tab_bar_rect,
         tab_hit_areas: tab_bar_view.tab_hit_areas,
         tab_scroll_left_hit_area: tab_bar_view.scroll_left_hit_area,
@@ -399,6 +405,7 @@ fn compute_mobile_view(
         workspace_bar_rect: Rect::default(),
         workspace_bar_hit_areas: Vec::new(),
         workspace_bar_button_hit_areas: Vec::new(),
+        workspace_bar_new_hit_area: Rect::default(),
         tab_bar_rect: Rect::default(),
         tab_hit_areas: Vec::new(),
         tab_scroll_left_hit_area: Rect::default(),
@@ -896,6 +903,24 @@ mod tests {
             .all(|r| r.width > 0 && r.y == 0));
         assert_eq!(app.view.sidebar_rect.y, 1);
         assert_eq!(app.view.terminal_area.height, 18);
+    }
+
+    #[test]
+    fn workspace_bar_new_button_follows_last_cell() {
+        let mut app = crate::app::state::AppState::test_new();
+        app.workspaces = vec![Workspace::test_new("one"), Workspace::test_new("two")];
+        app.active = Some(0);
+        app.selected = 0;
+        app.mode = Mode::Terminal;
+        app.workspace_bar = true;
+
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+        let last = *app.view.workspace_bar_hit_areas.last().unwrap();
+        let plus = app.view.workspace_bar_new_hit_area;
+        assert_eq!(plus.y, 0);
+        assert_eq!(plus.width, workspace_bar::NEW_WORKSPACE_WIDTH);
+        assert_eq!(plus.x, last.x + last.width + 1);
+        assert!(plus.x + plus.width <= 80);
     }
 
     #[test]
