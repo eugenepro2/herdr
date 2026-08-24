@@ -149,9 +149,18 @@ impl App {
             .focused_pane_cwd_in_workspace(ws_idx)
             .or_else(|| self.seed_cwd_from_workspace(ws_idx));
         let initial_cwd = self.resolve_new_terminal_cwd(follow_cwd);
+        // Run through the user's login+interactive shell (like a normal tab) so
+        // rc-file PATH and aliases apply; the bare server env has neither.
+        let shell = if self.state.default_shell.trim().is_empty() {
+            std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string())
+        } else {
+            self.state.default_shell.clone()
+        };
         let argv = vec![
-            "/bin/sh".to_string(),
-            "-lc".to_string(),
+            shell,
+            "-l".to_string(),
+            "-i".to_string(),
+            "-c".to_string(),
             self.state.new_agent_command.clone(),
         ];
         let (rows, cols) = self.state.estimate_pane_size();
