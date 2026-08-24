@@ -661,6 +661,7 @@ impl App {
             sidebar_agents_scope: config.ui.sidebar_agents_scope,
             tab_bar_contrast: config.ui.tab_bar_contrast,
             sidebar_divider: config.ui.sidebar_divider,
+            workspace_bar_gap: config.ui.workspace_bar_gap,
             workspace_bar: config.ui.workspace_bar,
             sidebar_git_footer: config.ui.sidebar_git_footer,
             new_agent_command: config.ui.new_agent_command.clone(),
@@ -1542,6 +1543,7 @@ impl App {
                 self.state.sidebar_agents_scope = config.ui.sidebar_agents_scope;
                 self.state.tab_bar_contrast = config.ui.tab_bar_contrast;
                 self.state.sidebar_divider = config.ui.sidebar_divider;
+                self.state.workspace_bar_gap = config.ui.workspace_bar_gap;
                 self.state.workspace_bar = config.ui.workspace_bar;
                 self.state.sidebar_git_footer = config.ui.sidebar_git_footer;
                 self.state.new_agent_command = config.ui.new_agent_command.clone();

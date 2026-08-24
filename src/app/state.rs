@@ -1573,6 +1573,7 @@ pub struct AppState {
     pub tab_bar_right_separator: String,
     pub tab_bar_contrast: bool,
     pub sidebar_divider: bool,
+    pub workspace_bar_gap: bool,
     pub pane_history_persistence: bool,
     /// Expose the focused pane's cursor anchor to the outer terminal even when
     /// the pane requested `?25l`. See `[experimental] reveal_hidden_cursor_for_cjk_ime`.
@@ -1987,6 +1988,7 @@ impl AppState {
             tab_bar_right_separator: " ".into(),
             tab_bar_contrast: false,
             sidebar_divider: false,
+            workspace_bar_gap: false,
             pane_history_persistence: false,
             reveal_hidden_cursor_for_cjk_ime: false,
             cjk_ime_agent_filter_configured: false,

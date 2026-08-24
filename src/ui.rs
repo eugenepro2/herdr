@@ -231,9 +231,16 @@ fn compute_view_internal(
         return;
     }
 
-    let (workspace_bar_rect, area) = if app.workspace_bar && area.height > 2 {
-        let [bar_rect, rest] =
-            Layout::vertical([Constraint::Length(1), Constraint::Min(1)]).areas(area);
+    // Fork: `ui.workspace_bar_gap` leaves the row under the bar unpainted, so the
+    // terminal background shows through as a gap.
+    let bar_gap = u16::from(app.workspace_bar_gap);
+    let (workspace_bar_rect, area) = if app.workspace_bar && area.height > 2 + bar_gap {
+        let [bar_rect, _gap, rest] = Layout::vertical([
+            Constraint::Length(1),
+            Constraint::Length(bar_gap),
+            Constraint::Min(1),
+        ])
+        .areas(area);
         (bar_rect, rest)
     } else {
         (Rect::default(), area)
@@ -1220,6 +1227,26 @@ mod tests {
             app.workspaces[0].tabs[background_tab].runtimes[&background_pane].current_size(),
             (18, 43)
         );
+    }
+
+    #[test]
+    fn workspace_bar_gap_pushes_content_down_one_row() {
+        let mut app = crate::app::state::AppState::test_new();
+        app.workspaces = vec![Workspace::test_new("one")];
+        app.active = Some(0);
+        app.selected = 0;
+        app.workspace_bar = true;
+        let area = Rect::new(0, 0, 80, 20);
+
+        compute_view(&mut app, area);
+        let bar = app.view.workspace_bar_rect;
+        let without = app.view.sidebar_rect.y;
+        assert_eq!(without, bar.y + bar.height);
+
+        app.workspace_bar_gap = true;
+        compute_view(&mut app, area);
+        assert_eq!(app.view.workspace_bar_rect, bar);
+        assert_eq!(app.view.sidebar_rect.y, without + 1);
     }
 
     #[test]

@@ -917,6 +917,9 @@ pub struct UiConfig {
     /// Fork: reserve a gutter column between the desktop sidebar and the pane
     /// area and draw a vertical rule in it. Default: false.
     pub sidebar_divider: bool,
+    /// Fork: leave one blank row under the workspace bar so it reads apart from
+    /// the sidebar and tab row. Default: false.
+    pub workspace_bar_gap: bool,
     /// Format for the outer terminal window title. Empty leaves the title alone.
     /// Default: "{hostname}: {workspace}".
     pub window_title: String,
@@ -1161,6 +1164,7 @@ impl Default for UiConfig {
             tab_bar_right_separator: " ".into(),
             tab_bar_contrast: false,
             sidebar_divider: false,
+            workspace_bar_gap: false,
             window_title: super::window_title::default_window_title(),
             agent_panel_sort: AgentPanelSortConfig::Spaces,
             _legacy_agent_panel_scope: None,
