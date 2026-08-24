@@ -1,6 +1,6 @@
 use ratatui::{
     layout::Rect,
-    style::{Modifier, Style},
+    style::{Color, Modifier, Style},
     widgets::Paragraph,
     Frame,
 };
@@ -316,6 +316,24 @@ fn tab_drop_indicator_x(
     None
 }
 
+/// Fork: background for the tab row. With `ui.tab_bar_contrast` it sits halfway
+/// between `panel_bg` and `surface0`, so the tab strip reads as its own surface
+/// next to the workspace bar without colliding with the tab chips (`surface0`).
+/// Flag off = upstream behavior (`panel_bg`).
+pub(super) fn tab_bar_bg(app: &AppState) -> Color {
+    let p = &app.palette;
+    if !app.tab_bar_contrast {
+        return p.panel_bg;
+    }
+    match (p.panel_bg, p.surface0) {
+        (Color::Rgb(pr, pg, pb), Color::Rgb(sr, sg, sb)) => {
+            Color::Rgb(pr / 2 + sr / 2, pg / 2 + sg / 2, pb / 2 + sb / 2)
+        }
+        // Reset/indexed colors can't be blended — keep upstream behavior.
+        _ => p.panel_bg,
+    }
+}
+
 pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
     if area.width == 0 || area.height == 0 {
         return;
@@ -327,9 +345,10 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
         return;
     };
     let p = &app.palette;
+    let bar_bg = tab_bar_bg(app);
 
     frame.render_widget(
-        Paragraph::new(" ".repeat(area.width as usize)).style(Style::default().bg(p.panel_bg)),
+        Paragraph::new(" ".repeat(area.width as usize)).style(Style::default().bg(bar_bg)),
         area,
     );
 
@@ -479,7 +498,7 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
                 let rect = Rect::new(x, area.y, separator_width, 1);
                 frame.render_widget(
                     Paragraph::new(app.tab_bar_right_separator.as_str())
-                        .style(Style::default().fg(p.overlay0).bg(p.panel_bg)),
+                        .style(Style::default().fg(p.overlay0).bg(bar_bg)),
                     rect,
                 );
                 x = x.saturating_add(separator_width);
@@ -493,7 +512,7 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
                     .bg(p.accent)
                     .add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(p.overlay1).bg(p.panel_bg)
+                Style::default().fg(p.overlay1).bg(bar_bg)
             };
             frame.render_widget(Paragraph::new(segment.text).style(style), rect);
             x = x.saturating_add(width);
@@ -544,6 +563,26 @@ mod tests {
             app.workspaces[0].tab_display_name(custom_tab).as_deref(),
             Some("test")
         );
+    }
+
+    #[test]
+    fn tab_bar_contrast_lifts_bar_bg_off_panel_and_chips() {
+        let mut app = AppState::test_new();
+        app.palette.panel_bg = Color::Rgb(20, 20, 30);
+        app.palette.surface0 = Color::Rgb(40, 44, 60);
+
+        app.tab_bar_contrast = false;
+        assert_eq!(tab_bar_bg(&app), app.palette.panel_bg);
+
+        app.tab_bar_contrast = true;
+        let bg = tab_bar_bg(&app);
+        assert_eq!(bg, Color::Rgb(30, 32, 45));
+        assert_ne!(bg, app.palette.panel_bg);
+        assert_ne!(bg, app.palette.surface0);
+
+        // Non-RGB palettes can't be blended — fall back to upstream behavior.
+        app.palette.panel_bg = Color::Reset;
+        assert_eq!(tab_bar_bg(&app), Color::Reset);
     }
 
     #[test]
