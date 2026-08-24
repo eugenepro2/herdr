@@ -233,7 +233,18 @@ fn compute_view_internal(
     } else {
         (Rect::default(), area)
     };
-    let workspace_bar_hit_areas = workspace_bar::workspace_bar_hit_areas(app, workspace_bar_rect);
+    let workspace_bar_button_hit_areas =
+        workspace_bar::workspace_bar_button_hit_areas(app, workspace_bar_rect);
+    let workspace_cells_rect = match workspace_bar_button_hit_areas.last() {
+        Some((rect, _)) => Rect::new(
+            workspace_bar_rect.x,
+            workspace_bar_rect.y,
+            rect.x.saturating_sub(workspace_bar_rect.x),
+            workspace_bar_rect.height,
+        ),
+        None => workspace_bar_rect,
+    };
+    let workspace_bar_hit_areas = workspace_bar::workspace_bar_hit_areas(app, workspace_cells_rect);
 
     let sidebar_w = if app.sidebar_collapsed {
         match app.sidebar_collapsed_mode {
@@ -321,6 +332,7 @@ fn compute_view_internal(
         workspace_card_areas,
         workspace_bar_rect,
         workspace_bar_hit_areas,
+        workspace_bar_button_hit_areas,
         tab_bar_rect,
         tab_hit_areas: tab_bar_view.tab_hit_areas,
         tab_scroll_left_hit_area: tab_bar_view.scroll_left_hit_area,
@@ -386,6 +398,7 @@ fn compute_mobile_view(
         workspace_card_areas: Vec::new(),
         workspace_bar_rect: Rect::default(),
         workspace_bar_hit_areas: Vec::new(),
+        workspace_bar_button_hit_areas: Vec::new(),
         tab_bar_rect: Rect::default(),
         tab_hit_areas: Vec::new(),
         tab_scroll_left_hit_area: Rect::default(),
@@ -883,6 +896,39 @@ mod tests {
             .all(|r| r.width > 0 && r.y == 0));
         assert_eq!(app.view.sidebar_rect.y, 1);
         assert_eq!(app.view.terminal_area.height, 18);
+    }
+
+    #[test]
+    fn workspace_bar_buttons_claim_right_edge_when_labeled() {
+        let mut app = crate::app::state::AppState::test_new();
+        app.workspaces = vec![Workspace::test_new("one"), Workspace::test_new("two")];
+        app.active = Some(0);
+        app.selected = 0;
+        app.mode = Mode::Terminal;
+        app.workspace_bar = true;
+        app.keybinds.custom_commands = vec![crate::config::CustomCommandKeybind {
+            bindings: crate::config::ActionKeybinds::prefix("t"),
+            label: "prefix+t".to_string(),
+            command: "brain-todo".to_string(),
+            action: crate::config::CustomCommandAction::Popup,
+            description: None,
+            width: None,
+            height: None,
+            button: Some("задачи".to_string()),
+        }];
+
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+        assert_eq!(app.view.workspace_bar_button_hit_areas.len(), 1);
+        let (rect, idx) = app.view.workspace_bar_button_hit_areas[0];
+        assert_eq!(idx, 0);
+        assert_eq!(rect.y, 0);
+        assert_eq!(rect.x + rect.width, 80);
+        // workspace cells stop before the button
+        assert!(app
+            .view
+            .workspace_bar_hit_areas
+            .iter()
+            .all(|r| r.x + r.width <= rect.x));
     }
 
     #[test]
@@ -1533,6 +1579,7 @@ mod tests {
                 description: Some("open lazygit".to_string()),
                 width: None,
                 height: None,
+                button: None,
             },
             crate::config::CustomCommandKeybind {
                 bindings: crate::config::ActionKeybinds::prefix("alt+h"),
@@ -1542,6 +1589,7 @@ mod tests {
                 description: None,
                 width: None,
                 height: None,
+                button: None,
             },
         ];
 

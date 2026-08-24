@@ -31,6 +31,9 @@ pub(super) enum MouseAction {
     FocusWorkspace {
         ws_idx: usize,
     },
+    LaunchCustomCommand {
+        idx: usize,
+    },
     FocusTab {
         tab_idx: usize,
     },
@@ -486,6 +489,10 @@ impl AppState {
 
                 if self.mode_bar_covers_tab_row(mouse.column, mouse.row) {
                     return None;
+                }
+
+                if let Some(idx) = self.workspace_bar_button_at(mouse.column, mouse.row) {
+                    return Some(MouseAction::LaunchCustomCommand { idx });
                 }
 
                 if let Some(ws_idx) = self.workspace_bar_at(mouse.column, mouse.row) {
@@ -1290,6 +1297,20 @@ impl AppState {
         } else {
             None
         }
+    }
+
+    pub(super) fn workspace_bar_button_at(&self, col: u16, row: u16) -> Option<usize> {
+        self.view
+            .workspace_bar_button_hit_areas
+            .iter()
+            .find_map(|(area, idx)| {
+                (area.width > 0
+                    && row >= area.y
+                    && row < area.y + area.height
+                    && col >= area.x
+                    && col < area.x + area.width)
+                    .then_some(*idx)
+            })
     }
 
     pub(super) fn workspace_bar_at(&self, col: u16, row: u16) -> Option<usize> {

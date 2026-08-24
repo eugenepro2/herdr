@@ -419,6 +419,15 @@ impl App {
                     MouseAction::FocusWorkspace { ws_idx } => {
                         self.focus_workspace_idx_via_api(ws_idx)
                     }
+                    MouseAction::LaunchCustomCommand { idx } => {
+                        if let Some(binding) = self.state.keybinds.custom_commands.get(idx).cloned()
+                        {
+                            self.launch_custom_command(
+                                binding,
+                                super::input::navigate::ActionContext::Direct,
+                            );
+                        }
+                    }
                     MouseAction::FocusTab { tab_idx } => self.focus_tab_idx_via_api(tab_idx),
                     MouseAction::FocusPane { ws_idx, pane_id } => {
                         self.focus_pane_internal_via_api(ws_idx, pane_id)

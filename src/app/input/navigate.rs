@@ -3596,6 +3596,7 @@ navigate_pane_down = "ctrl+j"
             description: None,
             width: None,
             height: None,
+            button: None,
         }];
 
         app.handle_key(TerminalKey::new(
@@ -3685,6 +3686,7 @@ navigate_pane_down = "ctrl+j"
             description: None,
             width: None,
             height: None,
+            button: None,
         }];
 
         app.handle_key(TerminalKey::new(

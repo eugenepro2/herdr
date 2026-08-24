@@ -101,6 +101,8 @@ pub struct CommandKeybindConfig {
     pub width: Option<PopupSize>,
     /// Optional popup height as cells or a percentage string when type = "popup".
     pub height: Option<PopupSize>,
+    /// Optional label shown as a clickable button in the workspace bar.
+    pub button: Option<String>,
 }
 
 impl Default for CommandKeybindConfig {
@@ -112,6 +114,7 @@ impl Default for CommandKeybindConfig {
             description: None,
             width: None,
             height: None,
+            button: None,
         }
     }
 }
@@ -289,6 +292,7 @@ pub struct CustomCommandKeybind {
     pub description: Option<String>,
     pub width: Option<PopupSize>,
     pub height: Option<PopupSize>,
+    pub button: Option<String>,
 }
 
 /// Parsed keybinds for Herdr actions.
@@ -791,6 +795,7 @@ fn append_custom_command_bindings(
             description: command.description.clone(),
             width,
             height,
+            button: command.button.clone(),
         });
     }
 }

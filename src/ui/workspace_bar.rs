@@ -44,6 +44,32 @@ pub(crate) fn workspace_bar_hit_areas(app: &AppState, area: Rect) -> Vec<Rect> {
     rects
 }
 
+/// Right-aligned clickable buttons for custom commands with a `button` label.
+/// Returns (rect, index into keybinds.custom_commands), right-to-left.
+pub(crate) fn workspace_bar_button_hit_areas(app: &AppState, area: Rect) -> Vec<(Rect, usize)> {
+    let mut out = Vec::new();
+    if area.width == 0 || area.height == 0 {
+        return out;
+    }
+    let mut right = area.x + area.width;
+    for (idx, cmd) in app.keybinds.custom_commands.iter().enumerate() {
+        let Some(label) = cmd.button.as_deref() else {
+            continue;
+        };
+        let width = display_width_u16(label).saturating_add(2);
+        if width == 0 || right.saturating_sub(area.x) < width {
+            break;
+        }
+        right -= width;
+        out.push((Rect::new(right, area.y, width, 1), idx));
+        if right == area.x {
+            break;
+        }
+        right -= 1;
+    }
+    out
+}
+
 pub(super) fn render_workspace_bar(app: &AppState, frame: &mut Frame, area: Rect) {
     if area.width == 0 || area.height == 0 {
         return;
@@ -83,5 +109,21 @@ pub(super) fn render_workspace_bar(app: &AppState, frame: &mut Frame, area: Rect
             Span::styled(format!(" {} ", cell_label(app, idx)), cell_style),
         ]);
         frame.render_widget(Paragraph::new(line), rect);
+    }
+
+    let button_style = Style::default().fg(panel_contrast_fg(p)).bg(p.overlay1);
+    for (rect, idx) in &app.view.workspace_bar_button_hit_areas {
+        let Some(label) = app
+            .keybinds
+            .custom_commands
+            .get(*idx)
+            .and_then(|cmd| cmd.button.as_deref())
+        else {
+            continue;
+        };
+        frame.render_widget(
+            Paragraph::new(Span::styled(format!(" {label} "), button_style)),
+            *rect,
+        );
     }
 }

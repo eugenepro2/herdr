@@ -1480,6 +1480,7 @@ mod tests {
             description: None,
             width: None,
             height: None,
+            button: None,
         }];
 
         app.handle_terminal_key(TerminalKey::new(
@@ -1506,6 +1507,7 @@ mod tests {
             description: None,
             width: None,
             height: None,
+            button: None,
         }];
 
         app.handle_terminal_key(TerminalKey::new(
@@ -1534,6 +1536,7 @@ mod tests {
             description: None,
             width: Some(crate::popup_size::PopupSize::Cells(60)),
             height: Some(crate::popup_size::PopupSize::Cells(12)),
+            button: None,
         }];
 
         app.handle_terminal_key(TerminalKey::new(
@@ -1589,6 +1592,7 @@ mod tests {
             description: None,
             width: None,
             height: None,
+            button: None,
         }];
 
         app.handle_terminal_key(TerminalKey::new(
