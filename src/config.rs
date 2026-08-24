@@ -23,7 +23,8 @@ pub use self::{
     model::{
         validated_sidebar_bounds, AgentPanelSortConfig, Config, ConfigReloadReport,
         ConfigReloadStatus, HostCursorModeConfig, NewTerminalCwdConfig, ShellModeConfig,
-        SidebarAgentsScopeConfig, SidebarCollapsedModeConfig, StatusIndicatorStyle,
+        NewAgentMenuEntry, SidebarAgentsScopeConfig, SidebarCollapsedModeConfig,
+        StatusIndicatorStyle,
         TabBarPositionConfig, ToastClipboardPosition, ToastConfig, ToastDelivery,
         ToastHerdrPosition, UpdateChannelConfig, MAX_TOAST_DELAY_SECONDS,
     },

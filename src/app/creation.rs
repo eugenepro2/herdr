@@ -139,7 +139,14 @@ impl App {
 
     /// "+" button in the agent panel: open a new tab running new_agent_command.
     pub(crate) fn create_agent_tab(&mut self) {
-        if self.state.new_agent_command.is_empty() {
+        let command = self.state.new_agent_command.clone();
+        self.create_agent_tab_with(command);
+    }
+
+    /// Open a new tab in the active workspace running `command` (also used by
+    /// the "+" right-click menu entries).
+    pub(crate) fn create_agent_tab_with(&mut self, command: String) {
+        if command.trim().is_empty() {
             return;
         }
         let Some(ws_idx) = self.state.active else {
@@ -161,7 +168,7 @@ impl App {
             "-l".to_string(),
             "-i".to_string(),
             "-c".to_string(),
-            self.state.new_agent_command.clone(),
+            command,
         ];
         let (rows, cols) = self.state.estimate_pane_size();
         let ws = &mut self.state.workspaces[ws_idx];

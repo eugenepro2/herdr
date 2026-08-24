@@ -384,6 +384,11 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # running the command via /bin/sh -lc. Empty hides the button.
 # new_agent_command = ""
 
+# Right-click menu on that "+" button: each entry opens a new tab running its command.
+# [[ui.new_agent_menu]]
+# label = "resume (-r)"
+# command = "claude -r"
+
 # Expanded agent rows. Built-ins are state_icon, state_text, workspace, tab, pane, agent,
 # terminal_title, and terminal_title_stripped.
 # Custom values reported through pane metadata use a $name token.

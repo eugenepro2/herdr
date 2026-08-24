@@ -1904,6 +1904,35 @@ mod tests {
     }
 
     #[test]
+    fn right_click_on_new_agent_button_opens_menu_with_config_labels() {
+        let mut app = app_for_mouse_test();
+        app.state.new_agent_command = "claude-cc".to_string();
+        app.state.new_agent_menu = vec![
+            crate::config::NewAgentMenuEntry {
+                label: "fable".into(),
+                command: "claude-cc --model fable".into(),
+            },
+            crate::config::NewAgentMenuEntry {
+                label: "resume".into(),
+                command: "claude-cc -r".into(),
+            },
+        ];
+        let rect =
+            crate::ui::agent_panel_new_agent_rect(&app.state, app.state.agent_panel_rect());
+        assert!(rect.width > 0);
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Right),
+            rect.x,
+            rect.y,
+        ));
+
+        assert_eq!(app.state.mode, crate::app::state::Mode::ContextMenu);
+        let menu = app.state.context_menu.as_ref().expect("menu open");
+        assert_eq!(menu.items(), vec!["fable", "resume"]);
+    }
+
+    #[test]
     fn dragging_sidebar_section_divider_sets_split_ratio() {
         let mut app = app_for_mouse_test();
         let divider = crate::ui::sidebar_section_divider_rect(

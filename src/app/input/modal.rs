@@ -1197,6 +1197,17 @@ impl App {
     pub(crate) fn apply_context_menu_action_via_api(&mut self, menu: ContextMenuState, idx: usize) {
         let item = menu.items().get(idx).copied();
         match (menu.kind, item) {
+            (ContextMenuKind::NewAgent { .. }, Some(_)) => {
+                let command = self
+                    .state
+                    .new_agent_menu
+                    .get(idx)
+                    .map(|entry| entry.command.clone());
+                leave_modal(&mut self.state);
+                if let Some(command) = command {
+                    self.create_agent_tab_with(command);
+                }
+            }
             (ContextMenuKind::GitWorkspace { ws_idx, .. }, Some("New worktree")) => {
                 self.state.request_new_linked_worktree = Some(ws_idx);
                 leave_modal(&mut self.state);

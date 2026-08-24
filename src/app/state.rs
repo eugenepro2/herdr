@@ -1262,6 +1262,10 @@ pub enum ContextMenuKind {
     Workspace {
         ws_idx: usize,
     },
+    /// Right-click on the agent panel "+" button; labels mirror ui.new_agent_menu.
+    NewAgent {
+        labels: Vec<&'static str>,
+    },
     GitWorkspace {
         ws_idx: usize,
         is_linked_worktree: bool,
@@ -1294,6 +1298,7 @@ impl ContextMenuState {
     pub fn items(&self) -> Vec<&'static str> {
         match self.kind {
             ContextMenuKind::Workspace { .. } => vec!["Rename", "Close"],
+            ContextMenuKind::NewAgent { ref labels } => labels.clone(),
             ContextMenuKind::GitWorkspace {
                 is_linked_worktree: false,
                 has_worktree_children: false,
@@ -1534,6 +1539,7 @@ pub struct AppState {
     pub sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig,
     pub workspace_bar: bool,
     pub new_agent_command: String,
+    pub new_agent_menu: Vec<crate::config::NewAgentMenuEntry>,
     /// Transient session-wide projection override for the built-in Agents view.
     pub agent_view_override: Option<crate::api::schema::AgentViewSetParams>,
     pub sidebar_agents: crate::config::AgentsSidebarConfig,
@@ -1944,6 +1950,7 @@ impl AppState {
             sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig::All,
             workspace_bar: false,
             new_agent_command: String::new(),
+            new_agent_menu: Vec::new(),
             agent_view_override: None,
             sidebar_agents: crate::config::AgentsSidebarConfig::default(),
             sidebar_spaces: crate::config::SpacesSidebarConfig::default(),
@@ -2329,6 +2336,7 @@ impl AppState {
                 ContextMenuKind::Tab { ws_idx, tab_idx } => {
                     assert_tab_index(ws_idx, tab_idx, "context menu tab")
                 }
+                ContextMenuKind::NewAgent { .. } => {}
                 ContextMenuKind::Pane {
                     ws_idx,
                     tab_idx,

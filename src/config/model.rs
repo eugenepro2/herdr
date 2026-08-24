@@ -134,6 +134,14 @@ impl StatusIndicatorStyle {
     }
 }
 
+/// One entry of the "+" button right-click menu: label shown, command run in a new tab.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(default)]
+pub struct NewAgentMenuEntry {
+    pub label: String,
+    pub command: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum SidebarAgentsScopeConfig {
@@ -920,6 +928,8 @@ pub struct UiConfig {
     /// Command for the sidebar agent panel "+" button; runs in a new tab.
     /// Empty (default) hides the button.
     pub new_agent_command: String,
+    /// Right-click menu entries for the "+" button. Empty (default) = no menu.
+    pub new_agent_menu: Vec<NewAgentMenuEntry>,
     /// Expanded sidebar row composition.
     pub sidebar: SidebarConfig,
     /// Accent color for highlights, borders, and navigation UI.
@@ -1147,6 +1157,7 @@ impl Default for UiConfig {
             sidebar_agents_scope: SidebarAgentsScopeConfig::All,
             workspace_bar: false,
             new_agent_command: String::new(),
+            new_agent_menu: Vec::new(),
             sidebar: SidebarConfig::default(),
             accent: "cyan".into(),
             toast: ToastConfig::default(),

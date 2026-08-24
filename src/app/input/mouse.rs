@@ -1052,6 +1052,26 @@ impl AppState {
                 }
             }
 
+            MouseEventKind::Down(MouseButton::Right)
+                if !self.new_agent_menu.is_empty()
+                    && self.on_agent_panel_new_button(mouse.column, mouse.row) =>
+            {
+                // ponytail: menu items are &'static str; leak the labels per open
+                // (a few bytes per right-click) instead of re-typing items() as owned.
+                let labels = self
+                    .new_agent_menu
+                    .iter()
+                    .map(|entry| &*Box::leak(entry.label.clone().into_boxed_str()))
+                    .collect();
+                self.context_menu = Some(ContextMenuState {
+                    kind: ContextMenuKind::NewAgent { labels },
+                    x: mouse.column,
+                    y: mouse.row,
+                    list: MenuListState::new(0),
+                });
+                self.mode = Mode::ContextMenu;
+            }
+
             MouseEventKind::Down(MouseButton::Right) if in_sidebar && !self.sidebar_collapsed => {
                 self.clear_chrome_press(source_id);
                 if self

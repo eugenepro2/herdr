@@ -657,6 +657,7 @@ impl App {
             sidebar_agents_scope: config.ui.sidebar_agents_scope,
             workspace_bar: config.ui.workspace_bar,
             new_agent_command: config.ui.new_agent_command.clone(),
+            new_agent_menu: config.ui.new_agent_menu.clone(),
             agent_view_override: None,
             sidebar_agents: config.ui.sidebar.agents.clone(),
             sidebar_spaces: config.ui.sidebar.spaces.clone(),
@@ -1534,6 +1535,7 @@ impl App {
                 self.state.sidebar_agents_scope = config.ui.sidebar_agents_scope;
                 self.state.workspace_bar = config.ui.workspace_bar;
                 self.state.new_agent_command = config.ui.new_agent_command.clone();
+                self.state.new_agent_menu = config.ui.new_agent_menu.clone();
                 self.state.sidebar_agents = config.ui.sidebar.agents.clone();
                 self.state.sidebar_spaces = config.ui.sidebar.spaces.clone();
                 self.state.agent_panel_scroll = 0;
