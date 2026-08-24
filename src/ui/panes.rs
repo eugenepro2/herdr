@@ -870,7 +870,13 @@ fn automatic_selection_style(
     p: &Palette,
     host_theme: crate::terminal_theme::TerminalTheme,
 ) -> Style {
-    let bg = automatic_selection_bg(p, host_theme);
+    // Prefer the theme's selection color; fall back to the host-derived
+    // automatic color only when the palette leaves it unset.
+    let bg = if p.selection_bg == Color::Reset {
+        automatic_selection_bg(p, host_theme)
+    } else {
+        p.selection_bg
+    };
     Style::reset().fg(selection_fg_for_bg(bg, p)).bg(bg)
 }
 
