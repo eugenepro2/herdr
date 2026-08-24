@@ -758,6 +758,53 @@ mod tests {
     }
 
     #[test]
+    fn right_clicking_an_agent_row_opens_the_pane_menu() {
+        let mut app = app_for_mouse_test();
+        let ws = Workspace::test_new("one");
+        let pane_id = ws.tabs[0].root_pane;
+        app.state.workspaces = vec![ws];
+        app.state.ensure_test_terminals();
+        let terminal_id = app.state.workspaces[0].tabs[0].panes[&pane_id]
+            .attached_terminal_id
+            .clone();
+        app.state
+            .terminals
+            .get_mut(&terminal_id)
+            .unwrap()
+            .detected_agent = Some(Agent::Claude);
+
+        let detail_area = app.state.agent_panel_rect();
+        let metrics = crate::ui::agent_panel_scroll_metrics(&app.state, detail_area);
+        let body = crate::ui::agent_panel_body_rect(
+            detail_area,
+            crate::ui::should_show_scrollbar(metrics),
+        );
+        assert_eq!(
+            app.state.agent_detail_target_at(body.y),
+            Some((0, 0, pane_id))
+        );
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Right),
+            body.x + 1,
+            body.y,
+        ));
+
+        assert_eq!(app.state.mode, Mode::ContextMenu);
+        let menu = app.state.context_menu.as_ref().unwrap();
+        assert!(matches!(
+            menu.kind,
+            crate::app::state::ContextMenuKind::Pane {
+                ws_idx: 0,
+                tab_idx: 0,
+                pane_id: id,
+                ..
+            } if id == pane_id
+        ));
+        assert!(menu.items().contains(&"Close pane"));
+    }
+
+    #[test]
     fn per_agent_row_heights_preserve_card_gaps_and_trailing_mouse_targets() {
         let mut app = app_for_mouse_test();
         let first = Workspace::test_new("one");

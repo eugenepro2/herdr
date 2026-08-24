@@ -1092,6 +1092,41 @@ impl AppState {
                 self.mode = Mode::ContextMenu;
             }
 
+            MouseEventKind::Down(MouseButton::Right)
+                if in_sidebar && self.sidebar_agent_target_at(mouse.row).is_some() =>
+            {
+                self.clear_chrome_press(source_id);
+                let Some((ws_idx, tab_idx, pane_id)) = self.sidebar_agent_target_at(mouse.row)
+                else {
+                    return None;
+                };
+                let ws = self.workspaces.get(ws_idx);
+                let source_pane_id = ws
+                    .and_then(|ws| ws.focused_pane_id())
+                    .filter(|focused| *focused != pane_id && self.active == Some(ws_idx));
+                let pane_state = ws.and_then(|ws| ws.pane_state(pane_id));
+                let has_manual_label = pane_state
+                    .and_then(|pane| self.terminals.get(&pane.attached_terminal_id))
+                    .and_then(|terminal| terminal.manual_label.as_ref())
+                    .is_some();
+                let right_click_passthrough =
+                    pane_state.is_some_and(|pane| pane.right_click_passthrough);
+                self.context_menu = Some(ContextMenuState {
+                    kind: ContextMenuKind::Pane {
+                        ws_idx,
+                        tab_idx,
+                        pane_id,
+                        source_pane_id,
+                        has_manual_label,
+                        right_click_passthrough,
+                    },
+                    x: mouse.column,
+                    y: mouse.row,
+                    list: MenuListState::new(0),
+                });
+                self.mode = Mode::ContextMenu;
+            }
+
             MouseEventKind::Down(MouseButton::Right) if in_sidebar && !self.sidebar_collapsed => {
                 self.clear_chrome_press(source_id);
                 if self
@@ -1356,6 +1391,15 @@ impl AppState {
                     && col < area.x + area.width)
                     .then_some(*idx)
             })
+    }
+
+    /// Agent row under `row` in the sidebar, collapsed or not.
+    pub(super) fn sidebar_agent_target_at(
+        &self,
+        row: u16,
+    ) -> Option<(usize, usize, crate::layout::PaneId)> {
+        self.agent_detail_target_at(row)
+            .or_else(|| self.collapsed_agent_detail_target_at(row))
     }
 
     pub(super) fn on_workspace_bar_new_button(&self, col: u16, row: u16) -> bool {
