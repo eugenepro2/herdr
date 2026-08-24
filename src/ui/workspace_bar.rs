@@ -82,6 +82,9 @@ pub(crate) fn workspace_bar_button_hit_areas(app: &AppState, area: Rect) -> Vec<
         let Some(label) = cmd.button.as_deref() else {
             continue;
         };
+        if cmd.button_position != crate::config::ButtonPosition::Bar {
+            continue;
+        }
         let width = display_width_u16(label).saturating_add(2);
         if width == 0 || right.saturating_sub(area.x) < width {
             break;
@@ -94,45 +97,6 @@ pub(crate) fn workspace_bar_button_hit_areas(app: &AppState, area: Rect) -> Vec<
         right -= 1;
     }
     out
-}
-
-/// Right-aligned " branch ↓behind ↑ahead " for the active space; empty when the
-/// flag is off, the space has no repo, or git data has not landed yet.
-pub(crate) fn workspace_bar_git_spans(app: &AppState) -> Vec<Span<'static>> {
-    if !app.workspace_bar_git {
-        return Vec::new();
-    }
-    let Some(branch) = app
-        .active
-        .and_then(|idx| app.workspaces.get(idx))
-        .and_then(|ws| ws.branch())
-    else {
-        return Vec::new();
-    };
-    let p = &app.palette;
-    let base = Style::default().bg(p.panel_bg);
-    let mut spans = vec![Span::styled(format!(" {branch}"), base.fg(p.overlay1))];
-    let (ahead, behind) = app
-        .active
-        .and_then(|idx| app.workspaces.get(idx))
-        .and_then(|ws| ws.git_ahead_behind())
-        .unwrap_or((0, 0));
-    if behind > 0 {
-        spans.push(Span::styled(format!(" ↓{behind}"), base.fg(p.red)));
-    }
-    if ahead > 0 {
-        spans.push(Span::styled(format!(" ↑{ahead}"), base.fg(p.green)));
-    }
-    spans.push(Span::styled(" ", base));
-    spans
-}
-
-/// Cells stop short of the git readout so the two never overlap.
-pub(crate) fn workspace_bar_git_width(app: &AppState) -> u16 {
-    workspace_bar_git_spans(app)
-        .iter()
-        .map(|span| display_width_u16(&span.content))
-        .sum()
 }
 
 pub(super) fn render_workspace_bar(app: &AppState, frame: &mut Frame, area: Rect) {
@@ -185,24 +149,6 @@ pub(super) fn render_workspace_bar(app: &AppState, frame: &mut Frame, area: Rect
             )),
             new_rect,
         );
-    }
-
-    let git_spans = workspace_bar_git_spans(app);
-    if !git_spans.is_empty() {
-        let width: u16 = git_spans
-            .iter()
-            .map(|span| display_width_u16(&span.content))
-            .sum();
-        let right = match app.view.workspace_bar_button_hit_areas.last() {
-            Some((rect, _)) => rect.x,
-            None => area.x + area.width,
-        };
-        if right.saturating_sub(area.x) >= width {
-            frame.render_widget(
-                Paragraph::new(Line::from(git_spans)),
-                Rect::new(right - width, area.y, width, 1),
-            );
-        }
     }
 
     let button_style = Style::default().fg(panel_contrast_fg(p)).bg(p.overlay1);

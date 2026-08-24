@@ -75,6 +75,17 @@ impl BindingConfig {
     }
 }
 
+/// Where a command's `button` label is drawn.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ButtonPosition {
+    /// Right side of the workspace bar.
+    #[default]
+    Bar,
+    /// Footer under the sidebar, next to the git readout.
+    Sidebar,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum CommandKeybindType {
@@ -103,6 +114,8 @@ pub struct CommandKeybindConfig {
     pub height: Option<PopupSize>,
     /// Optional label shown as a clickable button in the workspace bar.
     pub button: Option<String>,
+    /// Where that button is drawn: "bar" (default) or "sidebar".
+    pub button_position: ButtonPosition,
 }
 
 impl Default for CommandKeybindConfig {
@@ -115,6 +128,7 @@ impl Default for CommandKeybindConfig {
             width: None,
             height: None,
             button: None,
+            button_position: ButtonPosition::Bar,
         }
     }
 }
@@ -293,6 +307,7 @@ pub struct CustomCommandKeybind {
     pub width: Option<PopupSize>,
     pub height: Option<PopupSize>,
     pub button: Option<String>,
+    pub button_position: ButtonPosition,
 }
 
 /// Parsed keybinds for Herdr actions.
@@ -796,6 +811,7 @@ fn append_custom_command_bindings(
             width,
             height,
             button: command.button.clone(),
+            button_position: command.button_position,
         });
     }
 }

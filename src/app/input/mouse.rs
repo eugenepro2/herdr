@@ -517,6 +517,10 @@ impl AppState {
                     return Some(MouseAction::LaunchCustomCommand { idx });
                 }
 
+                if let Some(idx) = self.sidebar_footer_button_at(mouse.column, mouse.row) {
+                    return Some(MouseAction::LaunchCustomCommand { idx });
+                }
+
                 if self.on_workspace_bar_new_button(mouse.column, mouse.row) {
                     return Some(MouseAction::PickWorkspaceDir);
                 }
@@ -1411,6 +1415,20 @@ impl AppState {
                     && col >= area.x
                     && col < area.x + area.width)
                     .then_some(*idx)
+            })
+    }
+
+    /// Fork: command button under the cursor in the sidebar footer.
+    pub(super) fn sidebar_footer_button_at(&self, col: u16, row: u16) -> Option<usize> {
+        crate::ui::sidebar_footer_button_hit_areas(self)
+            .into_iter()
+            .find_map(|(area, idx)| {
+                (area.width > 0
+                    && row >= area.y
+                    && row < area.y + area.height
+                    && col >= area.x
+                    && col < area.x + area.width)
+                    .then_some(idx)
             })
     }
 

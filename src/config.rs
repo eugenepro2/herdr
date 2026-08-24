@@ -17,7 +17,8 @@ pub use self::{
     },
     keybinds::{
         format_key_combo, normalize_key_combo, terminal_key_matches_combo, ActionKeybinds,
-        BindingConfig, CommandKeybindConfig, CustomCommandAction, CustomCommandKeybind,
+        BindingConfig, ButtonPosition, CommandKeybindConfig, CustomCommandAction,
+        CustomCommandKeybind,
         IndexedKeybind, Keybinds, LiveKeybindConfig,
     },
     model::{

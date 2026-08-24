@@ -610,6 +610,7 @@ impl App {
             view: state::ViewState {
                 layout: state::ViewLayout::Desktop,
                 sidebar_rect: Rect::default(),
+                sidebar_footer_rect: Rect::default(),
                 workspace_card_areas: Vec::new(),
                 workspace_bar_rect: Rect::default(),
                 workspace_bar_hit_areas: Vec::new(),
@@ -661,7 +662,7 @@ impl App {
             tab_bar_contrast: config.ui.tab_bar_contrast,
             sidebar_divider: config.ui.sidebar_divider,
             workspace_bar: config.ui.workspace_bar,
-            workspace_bar_git: config.ui.workspace_bar_git,
+            sidebar_git_footer: config.ui.sidebar_git_footer,
             new_agent_command: config.ui.new_agent_command.clone(),
             new_agent_menu: config.ui.new_agent_menu.clone(),
             agent_view_override: None,
@@ -1542,7 +1543,7 @@ impl App {
                 self.state.tab_bar_contrast = config.ui.tab_bar_contrast;
                 self.state.sidebar_divider = config.ui.sidebar_divider;
                 self.state.workspace_bar = config.ui.workspace_bar;
-                self.state.workspace_bar_git = config.ui.workspace_bar_git;
+                self.state.sidebar_git_footer = config.ui.sidebar_git_footer;
                 self.state.new_agent_command = config.ui.new_agent_command.clone();
                 self.state.new_agent_menu = config.ui.new_agent_menu.clone();
                 self.state.sidebar_agents = config.ui.sidebar.agents.clone();

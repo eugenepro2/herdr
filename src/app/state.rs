@@ -870,6 +870,7 @@ pub enum ViewLayout {
 pub struct ViewState {
     pub layout: ViewLayout,
     pub sidebar_rect: Rect,
+    pub sidebar_footer_rect: Rect,
     pub workspace_card_areas: Vec<WorkspaceCardArea>,
     pub workspace_bar_rect: Rect,
     pub workspace_bar_hit_areas: Vec<Rect>,
@@ -1542,7 +1543,7 @@ pub struct AppState {
     pub status_indicators: crate::config::StatusIndicatorStyle,
     pub sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig,
     pub workspace_bar: bool,
-    pub workspace_bar_git: bool,
+    pub sidebar_git_footer: bool,
     pub new_agent_command: String,
     pub new_agent_menu: Vec<crate::config::NewAgentMenuEntry>,
     /// Transient session-wide projection override for the built-in Agents view.
@@ -1906,6 +1907,7 @@ impl AppState {
             view: ViewState {
                 layout: ViewLayout::Desktop,
                 sidebar_rect: Rect::default(),
+                sidebar_footer_rect: Rect::default(),
                 workspace_card_areas: Vec::new(),
                 workspace_bar_rect: Rect::default(),
                 workspace_bar_hit_areas: Vec::new(),
@@ -1958,7 +1960,7 @@ impl AppState {
             status_indicators: crate::config::StatusIndicatorStyle::Dots,
             sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig::All,
             workspace_bar: false,
-            workspace_bar_git: false,
+            sidebar_git_footer: false,
             new_agent_command: String::new(),
             new_agent_menu: Vec::new(),
             agent_view_override: None,

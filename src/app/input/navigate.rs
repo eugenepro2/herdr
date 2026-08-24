@@ -3597,6 +3597,7 @@ navigate_pane_down = "ctrl+j"
             width: None,
             height: None,
             button: None,
+            button_position: crate::config::ButtonPosition::Bar,
         }];
 
         app.handle_key(TerminalKey::new(
@@ -3687,6 +3688,7 @@ navigate_pane_down = "ctrl+j"
             width: None,
             height: None,
             button: None,
+            button_position: crate::config::ButtonPosition::Bar,
         }];
 
         app.handle_key(TerminalKey::new(

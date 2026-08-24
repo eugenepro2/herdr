@@ -1481,6 +1481,7 @@ mod tests {
             width: None,
             height: None,
             button: None,
+            button_position: crate::config::ButtonPosition::Bar,
         }];
 
         app.handle_terminal_key(TerminalKey::new(
@@ -1508,6 +1509,7 @@ mod tests {
             width: None,
             height: None,
             button: None,
+            button_position: crate::config::ButtonPosition::Bar,
         }];
 
         app.handle_terminal_key(TerminalKey::new(
@@ -1537,6 +1539,7 @@ mod tests {
             width: Some(crate::popup_size::PopupSize::Cells(60)),
             height: Some(crate::popup_size::PopupSize::Cells(12)),
             button: None,
+            button_position: crate::config::ButtonPosition::Bar,
         }];
 
         app.handle_terminal_key(TerminalKey::new(
@@ -1593,6 +1596,7 @@ mod tests {
             width: None,
             height: None,
             button: None,
+            button_position: crate::config::ButtonPosition::Bar,
         }];
 
         app.handle_terminal_key(TerminalKey::new(

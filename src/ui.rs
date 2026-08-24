@@ -22,6 +22,7 @@ mod tab_surface;
 mod tabs;
 mod text;
 mod widgets;
+mod sidebar_footer;
 mod workspace_bar;
 
 use self::dialogs::{
@@ -56,6 +57,7 @@ pub(crate) use self::scrollbar::{
 use self::settings::render_settings_overlay;
 #[cfg(test)]
 pub(crate) use self::sidebar::workspace_drop_indicator_row;
+pub(crate) use self::sidebar_footer::button_hit_areas as sidebar_footer_button_hit_areas;
 use self::sidebar::{render_sidebar, render_sidebar_collapsed};
 use self::status::{
     copy_feedback_rect, render_config_diagnostic, render_copy_feedback, render_toast_notification,
@@ -247,12 +249,6 @@ fn compute_view_internal(
         ),
         None => workspace_bar_rect,
     };
-    let workspace_cells_rect = Rect {
-        width: workspace_cells_rect
-            .width
-            .saturating_sub(workspace_bar::workspace_bar_git_width(app)),
-        ..workspace_cells_rect
-    };
     let workspace_bar_hit_areas = workspace_bar::workspace_bar_hit_areas(
         app,
         workspace_bar::workspace_cells_area(workspace_cells_rect),
@@ -279,6 +275,19 @@ fn compute_view_internal(
         Constraint::Min(1),
     ])
     .areas(area);
+    // Fork: `ui.sidebar_git_footer` and "sidebar" buttons live on rows carved
+    // off the bottom, so everything measuring the sidebar sees the short area.
+    let footer_h = sidebar_footer::footer_height(app).min(sidebar_area.height / 2);
+    let sidebar_footer_rect = Rect::new(
+        sidebar_area.x,
+        sidebar_area.y + sidebar_area.height - footer_h,
+        sidebar_area.width,
+        footer_h,
+    );
+    let sidebar_area = Rect {
+        height: sidebar_area.height - footer_h,
+        ..sidebar_area
+    };
 
     let (tab_bar_rect, terminal_area) = app
         .active
@@ -350,6 +359,7 @@ fn compute_view_internal(
     app.view = crate::app::ViewState {
         layout: ViewLayout::Desktop,
         sidebar_rect: sidebar_area,
+        sidebar_footer_rect,
         workspace_card_areas,
         workspace_bar_rect,
         workspace_bar_hit_areas,
@@ -417,6 +427,7 @@ fn compute_mobile_view(
     app.view = crate::app::ViewState {
         layout: ViewLayout::Mobile,
         sidebar_rect: Rect::default(),
+        sidebar_footer_rect: Rect::default(),
         workspace_card_areas: Vec::new(),
         workspace_bar_rect: Rect::default(),
         workspace_bar_hit_areas: Vec::new(),
@@ -528,6 +539,7 @@ fn render_navigation_chrome(
             render_sidebar(app, terminal_runtimes, frame, app.view.sidebar_rect);
         }
         render_sidebar_divider(app, frame, app.view.sidebar_rect);
+        sidebar_footer::render_sidebar_footer(app, frame);
     }
 }
 
@@ -1008,6 +1020,7 @@ mod tests {
             width: None,
             height: None,
             button: Some("задачи".to_string()),
+            button_position: crate::config::ButtonPosition::Bar,
         }];
 
         compute_view(&mut app, Rect::new(0, 0, 80, 20));
@@ -1025,7 +1038,7 @@ mod tests {
     }
 
     #[test]
-    fn workspace_bar_git_readout_reserves_room_left_of_the_cells() {
+    fn sidebar_git_footer_claims_rows_under_the_sidebar() {
         let mut app = crate::app::state::AppState::test_new();
         let mut ws = Workspace::test_new("one");
         ws.cached_git_branch = Some("main".into());
@@ -1034,21 +1047,34 @@ mod tests {
         app.active = Some(0);
         app.selected = 0;
         app.mode = Mode::Terminal;
-        app.workspace_bar = true;
+        app.sidebar_git_footer = true;
+        app.keybinds.custom_commands = vec![crate::config::CustomCommandKeybind {
+            bindings: crate::config::ActionKeybinds::prefix("g"),
+            label: "prefix+g".to_string(),
+            command: "git pull".to_string(),
+            action: crate::config::CustomCommandAction::Pane,
+            description: None,
+            width: None,
+            height: None,
+            button: Some("↓ pull".to_string()),
+            button_position: crate::config::ButtonPosition::Sidebar,
+        }];
 
         compute_view(&mut app, Rect::new(0, 0, 80, 20));
-        assert_eq!(workspace_bar::workspace_bar_git_width(&app), 0);
+        // git row plus button row, taken off the bottom of the sidebar
+        let footer = app.view.sidebar_footer_rect;
+        assert_eq!(footer.height, 2);
+        assert_eq!(footer.y, app.view.sidebar_rect.y + app.view.sidebar_rect.height);
+        assert_eq!(footer.y + footer.height, 20);
 
-        app.workspace_bar_git = true;
-        compute_view(&mut app, Rect::new(0, 0, 80, 20));
-        // " main" + " \u{2193}1" + " \u{2191}2" + trailing space
-        let width = workspace_bar::workspace_bar_git_width(&app);
-        assert_eq!(width, 12);
-        assert!(app
-            .view
-            .workspace_bar_hit_areas
-            .iter()
-            .all(|r| r.x + r.width <= 80 - width));
+        // the button sits on the footer's last row and answers clicks there
+        let buttons = sidebar_footer_button_hit_areas(&app);
+        assert_eq!(buttons.len(), 1);
+        let (rect, idx) = buttons[0];
+        assert_eq!(idx, 0);
+        assert_eq!(rect.y, footer.y + 1);
+        // bar buttons ignore the ones parked in the sidebar
+        assert!(app.view.workspace_bar_button_hit_areas.is_empty());
     }
 
     #[test]
@@ -1751,6 +1777,7 @@ mod tests {
                 width: None,
                 height: None,
                 button: None,
+                button_position: crate::config::ButtonPosition::Bar,
             },
             crate::config::CustomCommandKeybind {
                 bindings: crate::config::ActionKeybinds::prefix("alt+h"),
@@ -1761,6 +1788,7 @@ mod tests {
                 width: None,
                 height: None,
                 button: None,
+                button_position: crate::config::ButtonPosition::Bar,
             },
         ];
 
