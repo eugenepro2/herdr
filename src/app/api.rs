@@ -660,6 +660,42 @@ impl App {
         }
     }
 
+    /// Shell command that focuses the notifying pane; run by the desktop
+    /// notification on click (macOS + terminal-notifier).
+    fn notification_focus_action(
+        &self,
+        ws_idx: usize,
+        pane_id: crate::layout::PaneId,
+    ) -> Option<String> {
+        let ws = self.state.workspaces.get(ws_idx)?;
+        let tab_idx = ws.find_tab_index_for_pane(pane_id)?;
+        let tab_id = self.public_tab_id(ws_idx, tab_idx)?;
+        let public_pane_id = self.public_pane_id(ws_idx, pane_id)?;
+        let exe = std::env::current_exe().ok()?;
+        let exe = format!("'{}'", exe.display().to_string().replace('\'', "'\\''"));
+        Some(format!(
+            "{exe} workspace focus {ws} && {exe} tab focus {tab_id} && {exe} pane focus --pane {public_pane_id}",
+            ws = ws.id
+        ))
+    }
+
+    fn notify_terminal_or_system(
+        &self,
+        title: &str,
+        body: Option<&str>,
+        action: Option<&str>,
+    ) -> std::io::Result<bool> {
+        match self.state.toast_config.delivery {
+            crate::config::ToastDelivery::Terminal => {
+                crate::terminal_notify::show_notification(title, body)
+            }
+            crate::config::ToastDelivery::System => {
+                crate::platform::show_desktop_notification_with_action(title, body, action)
+            }
+            _ => Ok(false),
+        }
+    }
+
     fn emit_terminal_or_system_agent_notifications(
         &self,
         pane_updates: &[crate::app::actions::PaneStateUpdate],
@@ -673,12 +709,6 @@ impl App {
         {
             return;
         }
-
-        let notify = match self.state.toast_config.delivery {
-            crate::config::ToastDelivery::Terminal => crate::terminal_notify::show_notification,
-            crate::config::ToastDelivery::System => crate::platform::show_desktop_notification,
-            _ => return,
-        };
 
         for update in pane_updates {
             let is_active_tab = self
@@ -720,7 +750,8 @@ impl App {
             };
             let workspace_label =
                 ws.display_name_from(&self.state.terminals, &self.terminal_runtimes);
-            let _ = notify(
+            let action = self.notification_focus_action(update.ws_idx, update.pane_id);
+            let _ = self.notify_terminal_or_system(
                 &format!("{} {}", agent_label, event_text),
                 Some(&crate::app::actions::notification_context(
                     ws,
@@ -728,6 +759,7 @@ impl App {
                     update.ws_idx,
                     update.pane_id,
                 )),
+                action.as_deref(),
             );
         }
     }
@@ -761,17 +793,17 @@ impl App {
             return;
         }
 
-        let notify = match self.state.toast_config.delivery {
-            crate::config::ToastDelivery::Terminal => crate::terminal_notify::show_notification,
-            crate::config::ToastDelivery::System => crate::platform::show_desktop_notification,
-            _ => unreachable!("toast delivery was checked above"),
-        };
-
         for delivery in deliveries {
             let Some(toast) = &delivery.client_notification else {
                 continue;
             };
-            let _ = notify(&toast.title, Some(&toast.context));
+            let action = self
+                .state
+                .workspaces
+                .iter()
+                .position(|ws| ws.id == delivery.workspace_id)
+                .and_then(|ws_idx| self.notification_focus_action(ws_idx, delivery.pane_id));
+            let _ = self.notify_terminal_or_system(&toast.title, Some(&toast.context), action.as_deref());
         }
     }
 

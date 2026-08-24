@@ -227,6 +227,15 @@ pub fn read_clipboard_image() -> Option<ClipboardImage> {
 }
 
 /// Unsupported platform stub.
+/// Click actions are macOS-only; other platforms ignore `execute`.
+pub fn show_desktop_notification_with_action(
+    title: &str,
+    body: Option<&str>,
+    _execute: Option<&str>,
+) -> std::io::Result<bool> {
+    show_desktop_notification(title, body)
+}
+
 pub fn show_desktop_notification(_title: &str, _body: Option<&str>) -> std::io::Result<bool> {
     Ok(false)
 }

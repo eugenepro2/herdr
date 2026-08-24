@@ -1988,6 +1988,15 @@ fn clipboard_global_bytes(format: u32, max_bytes: usize) -> Option<Vec<u8>> {
     Some(bytes)
 }
 
+/// Click actions are macOS-only; other platforms ignore `execute`.
+pub fn show_desktop_notification_with_action(
+    title: &str,
+    body: Option<&str>,
+    _execute: Option<&str>,
+) -> std::io::Result<bool> {
+    show_desktop_notification(title, body)
+}
+
 pub fn show_desktop_notification(title: &str, body: Option<&str>) -> std::io::Result<bool> {
     let title = title.to_owned();
     let body = body.unwrap_or(&title).to_owned();
