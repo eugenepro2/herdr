@@ -488,6 +488,11 @@ impl AppState {
                     return None;
                 }
 
+                if let Some(ws_idx) = self.workspace_bar_at(mouse.column, mouse.row) {
+                    self.mode = Mode::Terminal;
+                    return Some(MouseAction::FocusWorkspace { ws_idx });
+                }
+
                 if self.on_tab_scroll_left_button(mouse.column, mouse.row) {
                     self.scroll_tabs_left();
                     return None;
@@ -1285,6 +1290,21 @@ impl AppState {
         } else {
             None
         }
+    }
+
+    pub(super) fn workspace_bar_at(&self, col: u16, row: u16) -> Option<usize> {
+        self.view
+            .workspace_bar_hit_areas
+            .iter()
+            .enumerate()
+            .find_map(|(idx, area)| {
+                (area.width > 0
+                    && row >= area.y
+                    && row < area.y + area.height
+                    && col >= area.x
+                    && col < area.x + area.width)
+                    .then_some(idx)
+            })
     }
 
     pub(super) fn tab_at(&self, col: u16, row: u16) -> Option<usize> {

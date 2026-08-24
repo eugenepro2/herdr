@@ -871,6 +871,8 @@ pub struct ViewState {
     pub layout: ViewLayout,
     pub sidebar_rect: Rect,
     pub workspace_card_areas: Vec<WorkspaceCardArea>,
+    pub workspace_bar_rect: Rect,
+    pub workspace_bar_hit_areas: Vec<Rect>,
     pub tab_bar_rect: Rect,
     pub tab_hit_areas: Vec<Rect>,
     pub tab_scroll_left_hit_area: Rect,
@@ -1528,6 +1530,8 @@ pub struct AppState {
     pub sidebar_section_split: f32,
     pub agent_panel_sort: AgentPanelSort,
     pub status_indicators: crate::config::StatusIndicatorStyle,
+    pub sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig,
+    pub workspace_bar: bool,
     /// Transient session-wide projection override for the built-in Agents view.
     pub agent_view_override: Option<crate::api::schema::AgentViewSetParams>,
     pub sidebar_agents: crate::config::AgentsSidebarConfig,
@@ -1625,6 +1629,16 @@ pub struct AppState {
 }
 
 impl AppState {
+    /// Effective sidebar split ratio; negative hides the workspace section
+    /// when the workspace bar replaces it.
+    pub(crate) fn sidebar_split(&self) -> f32 {
+        if self.workspace_bar {
+            -1.0
+        } else {
+            self.sidebar_section_split
+        }
+    }
+
     pub(crate) fn mark_session_dirty(&mut self) {
         self.session_dirty = true;
     }
@@ -1877,6 +1891,8 @@ impl AppState {
                 layout: ViewLayout::Desktop,
                 sidebar_rect: Rect::default(),
                 workspace_card_areas: Vec::new(),
+                workspace_bar_rect: Rect::default(),
+                workspace_bar_hit_areas: Vec::new(),
                 tab_bar_rect: Rect::default(),
                 tab_hit_areas: Vec::new(),
                 tab_scroll_left_hit_area: Rect::default(),
@@ -1922,6 +1938,8 @@ impl AppState {
             sidebar_section_split: 0.5,
             agent_panel_sort: AgentPanelSort::Spaces,
             status_indicators: crate::config::StatusIndicatorStyle::Dots,
+            sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig::All,
+            workspace_bar: false,
             agent_view_override: None,
             sidebar_agents: crate::config::AgentsSidebarConfig::default(),
             sidebar_spaces: crate::config::SpacesSidebarConfig::default(),

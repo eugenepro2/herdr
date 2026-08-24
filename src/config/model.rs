@@ -134,6 +134,14 @@ impl StatusIndicatorStyle {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum SidebarAgentsScopeConfig {
+    #[default]
+    All,
+    Active,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum HostCursorModeConfig {
@@ -905,6 +913,10 @@ pub struct UiConfig {
     _legacy_agent_panel_scope: Option<LegacyAgentPanelScopeConfig>,
     /// Agent status indicator style. Saved values are "dots" or "symbols". Default: "dots".
     pub status_indicators: StatusIndicatorStyle,
+    /// Sidebar agent rows scope: "all" workspaces or only the "active" one. Default: "all".
+    pub sidebar_agents_scope: SidebarAgentsScopeConfig,
+    /// Show a workspace strip above the layout, browser-tab style. Default: false.
+    pub workspace_bar: bool,
     /// Expanded sidebar row composition.
     pub sidebar: SidebarConfig,
     /// Accent color for highlights, borders, and navigation UI.
@@ -1129,6 +1141,8 @@ impl Default for UiConfig {
             agent_panel_sort: AgentPanelSortConfig::Spaces,
             _legacy_agent_panel_scope: None,
             status_indicators: StatusIndicatorStyle::Dots,
+            sidebar_agents_scope: SidebarAgentsScopeConfig::All,
+            workspace_bar: false,
             sidebar: SidebarConfig::default(),
             accent: "cyan".into(),
             toast: ToastConfig::default(),

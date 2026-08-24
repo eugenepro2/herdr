@@ -373,6 +373,13 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # distinct static glyphs for blocked, working, done, idle, and unknown states.
 # status_indicators = "dots"
 
+# Sidebar agent rows scope: "all" lists agents from every space; "active" only
+# the focused space.
+# sidebar_agents_scope = "all"
+
+# Show a workspace strip above the layout to switch spaces like browser tabs.
+# workspace_bar = false
+
 # Expanded agent rows. Built-ins are state_icon, state_text, workspace, tab, pane, agent,
 # terminal_title, and terminal_title_stripped.
 # Custom values reported through pane metadata use a $name token.

@@ -1,0 +1,87 @@
+use ratatui::{
+    layout::Rect,
+    style::{Modifier, Style},
+    text::{Line, Span},
+    widgets::Paragraph,
+    Frame,
+};
+
+use super::status::state_icon;
+use super::text::display_width_u16;
+use super::widgets::panel_contrast_fg;
+use crate::app::AppState;
+
+fn cell_label(app: &AppState, ws_idx: usize) -> String {
+    let Some(ws) = app.workspaces.get(ws_idx) else {
+        return String::new();
+    };
+    format!(
+        "{} {}",
+        ws_idx + 1,
+        ws.display_name_from_terminals(&app.terminals)
+    )
+}
+
+/// Left-to-right cells, one per workspace, truncated at the right edge.
+// ponytail: no scroll buttons; copy tabs.rs scrolling when spaces stop fitting.
+pub(crate) fn workspace_bar_hit_areas(app: &AppState, area: Rect) -> Vec<Rect> {
+    let mut rects = vec![Rect::default(); app.workspaces.len()];
+    if area.width == 0 || area.height == 0 {
+        return rects;
+    }
+    let mut x = area.x;
+    let right = area.x + area.width;
+    for (idx, rect) in rects.iter_mut().enumerate() {
+        if x >= right {
+            break;
+        }
+        // " {icon} {n} {label} " -> label plus icon and padding cells.
+        let desired = display_width_u16(&cell_label(app, idx)).saturating_add(4);
+        let width = desired.min(right.saturating_sub(x)).max(1);
+        *rect = Rect::new(x, area.y, width, 1);
+        x = x.saturating_add(width + 1);
+    }
+    rects
+}
+
+pub(super) fn render_workspace_bar(app: &AppState, frame: &mut Frame, area: Rect) {
+    if area.width == 0 || area.height == 0 {
+        return;
+    }
+    let p = &app.palette;
+    frame.render_widget(
+        Paragraph::new(" ".repeat(area.width as usize)).style(Style::default().bg(p.panel_bg)),
+        area,
+    );
+
+    for (idx, ws) in app.workspaces.iter().enumerate() {
+        let Some(rect) = app.view.workspace_bar_hit_areas.get(idx).copied() else {
+            break;
+        };
+        if rect.width == 0 {
+            continue;
+        }
+        let active = app.active == Some(idx);
+        let cell_style = if active {
+            Style::default()
+                .fg(panel_contrast_fg(p))
+                .bg(p.accent)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(p.overlay1).bg(p.surface0)
+        };
+        let (state, seen) = ws.aggregate_state(&app.terminals);
+        let (icon, icon_style) = state_icon(state, seen, app.status_indicators, p);
+        let icon_style = if active {
+            cell_style
+        } else {
+            icon_style.bg(p.surface0)
+        };
+        let line = Line::from(vec![
+            Span::styled(" ", cell_style),
+            Span::styled(icon, icon_style),
+            Span::styled(format!(" {} ", cell_label(app, idx)), cell_style),
+        ]);
+        frame.render_widget(Paragraph::new(line), rect);
+    }
+}

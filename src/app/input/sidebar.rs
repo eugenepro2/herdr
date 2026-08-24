@@ -278,7 +278,7 @@ impl AppState {
         }
         let rect = crate::ui::sidebar_section_divider_rect(
             self.view.sidebar_rect,
-            self.sidebar_section_split,
+            self.sidebar_split(),
         );
         rect.width > 0
             && col >= rect.x

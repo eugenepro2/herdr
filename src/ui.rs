@@ -21,6 +21,7 @@ mod tab_surface;
 mod tabs;
 mod text;
 mod widgets;
+mod workspace_bar;
 
 use self::dialogs::{
     render_confirm_close_overlay, render_new_linked_worktree_overlay,
@@ -63,6 +64,7 @@ pub(crate) use self::tab_surface::{
     compute_tab_surface, render_tab_surface, resize_tab_surface, TabSurfaceLayout,
 };
 use self::tabs::render_tab_bar;
+use self::workspace_bar::render_workspace_bar;
 pub(crate) use self::{
     dialogs::{
         confirm_close_button_rects, confirm_close_popup_rect, new_linked_worktree_button_rects,
@@ -224,6 +226,15 @@ fn compute_view_internal(
         return;
     }
 
+    let (workspace_bar_rect, area) = if app.workspace_bar && area.height > 2 {
+        let [bar_rect, rest] =
+            Layout::vertical([Constraint::Length(1), Constraint::Min(1)]).areas(area);
+        (bar_rect, rest)
+    } else {
+        (Rect::default(), area)
+    };
+    let workspace_bar_hit_areas = workspace_bar::workspace_bar_hit_areas(app, workspace_bar_rect);
+
     let sidebar_w = if app.sidebar_collapsed {
         match app.sidebar_collapsed_mode {
             crate::config::SidebarCollapsedModeConfig::Compact => COLLAPSED_WIDTH,
@@ -245,7 +256,7 @@ fn compute_view_internal(
 
     if !app.sidebar_collapsed {
         app.workspace_scroll = normalized_workspace_scroll(app, sidebar_area, app.workspace_scroll);
-        let (_, detail_area) = expanded_sidebar_sections(sidebar_area, app.sidebar_section_split);
+        let (_, detail_area) = expanded_sidebar_sections(sidebar_area, app.sidebar_split());
         let max_agent_scroll = agent_panel_scroll_metrics(app, detail_area).max_offset_from_bottom;
         app.agent_panel_scroll = app.agent_panel_scroll.min(max_agent_scroll);
     } else {
@@ -308,6 +319,8 @@ fn compute_view_internal(
         layout: ViewLayout::Desktop,
         sidebar_rect: sidebar_area,
         workspace_card_areas,
+        workspace_bar_rect,
+        workspace_bar_hit_areas,
         tab_bar_rect,
         tab_hit_areas: tab_bar_view.tab_hit_areas,
         tab_scroll_left_hit_area: tab_bar_view.scroll_left_hit_area,
@@ -371,6 +384,8 @@ fn compute_mobile_view(
         layout: ViewLayout::Mobile,
         sidebar_rect: Rect::default(),
         workspace_card_areas: Vec::new(),
+        workspace_bar_rect: Rect::default(),
+        workspace_bar_hit_areas: Vec::new(),
         tab_bar_rect: Rect::default(),
         tab_hit_areas: Vec::new(),
         tab_scroll_left_hit_area: Rect::default(),
@@ -403,6 +418,7 @@ pub fn render_with_runtime_registry(
 
     render_navigation_chrome(app, terminal_runtimes, frame);
     if app.view.layout != ViewLayout::Mobile {
+        render_workspace_bar(app, frame, app.view.workspace_bar_rect);
         render_tab_bar(app, frame, tab_bar_area);
     }
     if app
@@ -838,6 +854,35 @@ mod tests {
             app.view.tab_bar_rect.y,
         );
         assert!(mode_row.contains("PREFIX"), "{mode_row}");
+    }
+
+    #[test]
+    fn workspace_bar_reserves_top_row_and_exposes_hit_areas() {
+        let mut app = crate::app::state::AppState::test_new();
+        app.workspaces = vec![Workspace::test_new("one"), Workspace::test_new("two")];
+        app.active = Some(0);
+        app.selected = 0;
+        app.mode = Mode::Terminal;
+
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+        assert_eq!(app.view.workspace_bar_rect, Rect::default());
+        assert!(app
+            .view
+            .workspace_bar_hit_areas
+            .iter()
+            .all(|r| r.width == 0));
+
+        app.workspace_bar = true;
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+        assert_eq!(app.view.workspace_bar_rect, Rect::new(0, 0, 80, 1));
+        assert_eq!(app.view.workspace_bar_hit_areas.len(), 2);
+        assert!(app
+            .view
+            .workspace_bar_hit_areas
+            .iter()
+            .all(|r| r.width > 0 && r.y == 0));
+        assert_eq!(app.view.sidebar_rect.y, 1);
+        assert_eq!(app.view.terminal_area.height, 18);
     }
 
     #[test]
