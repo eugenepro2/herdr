@@ -38,6 +38,7 @@ fn modified_url_click_modifier_matches_terminal_mouse_reporting() {
 
 mod clipboard;
 mod copy_mode;
+pub(crate) mod dir_picker;
 mod lease;
 mod modal;
 mod mouse;
@@ -102,6 +103,9 @@ impl App {
                 Mode::Prefix | Mode::Navigate | Mode::Copy => unreachable!(),
                 Mode::RenameWorkspace | Mode::RenameTab | Mode::RenamePane => {
                     self.handle_rename_key_via_api(key_event)
+                }
+                Mode::PickWorkspaceDir => {
+                    dir_picker::handle_dir_picker_key(&mut self.state, key_event)
                 }
                 Mode::NewLinkedWorktree => self.handle_worktree_create_key(key_event),
                 Mode::OpenExistingWorktree => self.handle_worktree_open_key(key_event),
@@ -209,6 +213,10 @@ impl App {
 
     pub(crate) fn paste_into_active_text_input(&mut self, text: &str) -> bool {
         match self.state.mode {
+            Mode::PickWorkspaceDir => {
+                dir_picker::insert_dir_picker_text(&mut self.state, text);
+                true
+            }
             Mode::RenameWorkspace | Mode::RenameTab | Mode::RenamePane => {
                 insert_rename_input_text(&mut self.state, text);
                 true
@@ -399,6 +407,14 @@ impl App {
                 match action {
                     MouseAction::NewWorkspace => {
                         self.begin_tui_workspace_create("tui.mouse.workspace.create")
+                    }
+                    MouseAction::PickWorkspaceDir => {
+                        let follow_cwd = self.workspace_creation_source().and_then(|ws_idx| {
+                            self.focused_pane_cwd_in_workspace(ws_idx)
+                                .or_else(|| self.seed_cwd_from_workspace(ws_idx))
+                        });
+                        let cwd = self.resolve_new_terminal_cwd(follow_cwd);
+                        dir_picker::open_dir_picker(&mut self.state, cwd);
                     }
                     MouseAction::Settings(action) => match action {
                         SettingsAction::SaveTheme(name) => self.save_theme(&name),
@@ -736,6 +752,7 @@ pub(crate) fn is_modal_paste_shortcut(key: &KeyEvent) -> bool {
 
 pub(crate) fn modal_paste_target_active(state: &AppState) -> bool {
     match state.mode {
+        Mode::PickWorkspaceDir => true,
         Mode::RenameWorkspace | Mode::RenameTab | Mode::RenamePane | Mode::NewLinkedWorktree => {
             true
         }

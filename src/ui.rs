@@ -6,6 +6,7 @@ use ratatui::{
 };
 
 mod dialogs;
+mod dir_picker;
 mod keybind_help;
 mod menus;
 mod mobile;
@@ -65,6 +66,8 @@ pub(crate) use self::tab_surface::{
 };
 use self::tabs::render_tab_bar;
 use self::workspace_bar::render_workspace_bar;
+pub(crate) use self::dir_picker::{dir_picker_list_rect, dir_picker_popup_rect, dir_picker_scroll_start};
+use self::dir_picker::render_dir_picker_overlay;
 pub(crate) use self::{
     dialogs::{
         confirm_close_button_rects, confirm_close_popup_rect, new_linked_worktree_button_rects,
@@ -485,6 +488,7 @@ pub fn render_with_runtime_registry(
         Mode::RenameWorkspace | Mode::RenameTab | Mode::RenamePane => {
             render_rename_overlay(app, frame, frame.area())
         }
+        Mode::PickWorkspaceDir => render_dir_picker_overlay(app, frame, frame.area()),
         Mode::NewLinkedWorktree => render_new_linked_worktree_overlay(app, frame, frame.area()),
         Mode::OpenExistingWorktree => {
             render_open_existing_worktree_overlay(app, frame, frame.area())
@@ -680,6 +684,39 @@ mod tests {
             ),
             bottom_center_toast.height
         );
+    }
+
+    #[test]
+    fn dir_picker_overlay_lists_folders_and_hints() {
+        let root = std::env::temp_dir().join(format!("herdr-ui-picker-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for name in ["alpha", "beta"] {
+            std::fs::create_dir_all(root.join(name)).unwrap();
+        }
+
+        let mut app = crate::app::state::AppState::test_new();
+        app.workspaces = vec![Workspace::test_new("one")];
+        app.active = Some(0);
+        app.mode = Mode::PickWorkspaceDir;
+        app.dir_picker = Some(crate::app::dir_picker::DirPickerState::open(root.clone()));
+
+        let area = Rect::new(0, 0, 100, 30);
+        compute_view(&mut app, area);
+        let mut terminal = Terminal::new(TestBackend::new(area.width, area.height)).unwrap();
+        terminal.draw(|frame| render(&app, frame)).unwrap();
+        let screen = (0..area.height)
+            .map(|row| buffer_row_text(terminal.backend().buffer(), area, row))
+            .collect::<Vec<_>>()
+            .join("\n");
+        eprintln!("{screen}");
+
+        assert!(screen.contains("новый спейс"), "{screen}");
+        assert!(screen.contains("создать здесь"), "{screen}");
+        assert!(screen.contains("alpha"), "{screen}");
+        assert!(screen.contains("beta"), "{screen}");
+        assert!(screen.contains("внутрь"), "{screen}");
+
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

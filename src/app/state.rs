@@ -910,6 +910,8 @@ pub enum Mode {
     GlobalMenu,
     KeybindHelp,
     Navigator,
+    /// Folder picker for a new workspace (workspace bar "+").
+    PickWorkspaceDir,
 }
 
 impl Mode {
@@ -1482,6 +1484,7 @@ pub struct AppState {
     pub rename_pane_target: Option<PaneId>,
     pub worktree_create: Option<WorktreeCreateState>,
     pub worktree_open: Option<WorktreeOpenState>,
+    pub dir_picker: Option<crate::app::dir_picker::DirPickerState>,
     pub worktree_remove: Option<WorktreeRemoveState>,
     pub worktree_directory: std::path::PathBuf,
     pub collapsed_space_keys: std::collections::HashSet<String>,
@@ -1880,6 +1883,7 @@ impl AppState {
             rename_pane_target: None,
             worktree_create: None,
             worktree_open: None,
+            dir_picker: None,
             worktree_remove: None,
             worktree_directory: std::path::PathBuf::from("/tmp/herdr-worktrees"),
             collapsed_space_keys: std::collections::HashSet::new(),

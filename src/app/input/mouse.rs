@@ -27,6 +27,7 @@ use super::{
 
 pub(super) enum MouseAction {
     NewWorkspace,
+    PickWorkspaceDir,
     Settings(SettingsAction),
     FocusWorkspace {
         ws_idx: usize,
@@ -215,6 +216,26 @@ impl AppState {
                 }
                 _ => {}
             }
+        }
+
+        if self.mode == Mode::PickWorkspaceDir {
+            match mouse.kind {
+                MouseEventKind::ScrollUp => {
+                    if let Some(picker) = &mut self.dir_picker {
+                        picker.move_prev();
+                    }
+                }
+                MouseEventKind::ScrollDown => {
+                    if let Some(picker) = &mut self.dir_picker {
+                        picker.move_next();
+                    }
+                }
+                MouseEventKind::Down(MouseButton::Left) => {
+                    super::dir_picker::handle_dir_picker_click(self, mouse.column, mouse.row);
+                }
+                _ => {}
+            }
+            return None;
         }
 
         if matches!(
@@ -497,7 +518,7 @@ impl AppState {
                 }
 
                 if self.on_workspace_bar_new_button(mouse.column, mouse.row) {
-                    return Some(MouseAction::NewWorkspace);
+                    return Some(MouseAction::PickWorkspaceDir);
                 }
 
                 if let Some(ws_idx) = self.workspace_bar_at(mouse.column, mouse.row) {
@@ -1327,7 +1348,7 @@ impl AppState {
         );
     }
 
-    pub(super) fn screen_rect(&self) -> Rect {
+    pub(crate) fn screen_rect(&self) -> Rect {
         let sidebar = self.view.sidebar_rect;
         let terminal = self.view.terminal_area;
         let x = sidebar.x.min(terminal.x);
@@ -4916,6 +4937,56 @@ mod tests {
     }
 
     #[test]
+    fn workspace_bar_new_button_opens_the_folder_picker() {
+        let root = std::env::temp_dir().join(format!("herdr-plus-picker-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("proj")).unwrap();
+
+        let mut app = app_for_mouse_test();
+        app.state.workspaces = vec![Workspace::test_new("a")];
+        app.state.active = Some(0);
+        app.state.selected = 0;
+        app.state.workspace_bar = true;
+        crate::ui::compute_view(&mut app.state, Rect::new(0, 0, 120, 40));
+        let plus = app.state.view.workspace_bar_new_hit_area;
+
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            plus.x,
+            plus.y,
+        ));
+        assert_eq!(app.state.mode, Mode::PickWorkspaceDir);
+
+        // point the picker at our temp tree, then click the "proj" row
+        app.state.dir_picker =
+            Some(crate::app::dir_picker::DirPickerState::open(root.clone()));
+        let list = crate::ui::dir_picker_list_rect(&app.state).unwrap();
+        let rows = app.state.dir_picker.as_ref().unwrap().rows();
+        let proj_idx = rows
+            .iter()
+            .position(|row| *row == crate::app::dir_picker::DirPickerRow::Dir("proj".into()))
+            .unwrap();
+        app.handle_mouse(mouse(
+            MouseEventKind::Down(MouseButton::Left),
+            list.x + 1,
+            list.y + proj_idx as u16,
+        ));
+        assert_eq!(app.state.dir_picker.as_ref().unwrap().dir, root.join("proj"));
+
+        // enter on "create here" hands the path to the workspace create request
+        app.state.dir_picker.as_mut().unwrap().selected = 0;
+        crate::app::input::dir_picker::handle_dir_picker_key(
+            &mut app.state,
+            KeyEvent::new(KeyCode::Enter, KeyModifiers::empty()),
+        );
+        assert_eq!(app.state.request_new_workspace_cwd, Some(root.join("proj")));
+        assert_eq!(app.state.mode, Mode::Terminal);
+        assert!(app.state.dir_picker.is_none());
+
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn workspace_bar_new_button_and_right_click_menu() {
         let mut app = app_for_mouse_test();
         app.state.workspaces = vec![Workspace::test_new("a"), Workspace::test_new("b")];
@@ -4932,7 +5003,7 @@ mod tests {
             0,
             mouse(MouseEventKind::Down(MouseButton::Left), plus.x, plus.y),
         );
-        assert!(matches!(action, Some(MouseAction::NewWorkspace)));
+        assert!(matches!(action, Some(MouseAction::PickWorkspaceDir)));
 
         let cell = app.state.view.workspace_bar_hit_areas[1];
         app.state.handle_mouse(

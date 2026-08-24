@@ -13,6 +13,7 @@ mod api;
 mod api_helpers;
 pub(crate) use api_helpers::limit_snapshot_lines;
 mod config_io;
+pub(crate) mod dir_picker;
 mod creation;
 mod git_refresh;
 mod ids;
@@ -580,6 +581,7 @@ impl App {
             rename_pane_target: None,
             worktree_create: None,
             worktree_open: None,
+            dir_picker: None,
             worktree_remove: None,
             worktree_directory,
             collapsed_space_keys,
@@ -1935,6 +1937,9 @@ impl App {
             Mode::RenameWorkspace | Mode::RenameTab | Mode::RenamePane => {
                 self.handle_rename_key_via_api(key_event);
             }
+            Mode::PickWorkspaceDir => {
+                crate::app::input::dir_picker::handle_dir_picker_key(&mut self.state, key_event);
+            }
             Mode::NewLinkedWorktree => {
                 self.handle_worktree_create_key(key_event);
             }
@@ -2250,6 +2255,7 @@ mod tests {
             Mode::RenameTab,
             Mode::RenamePane,
             Mode::NewLinkedWorktree,
+            Mode::PickWorkspaceDir,
             Mode::OpenExistingWorktree,
             Mode::Settings,
             Mode::Onboarding,
