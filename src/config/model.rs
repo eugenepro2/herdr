@@ -925,6 +925,8 @@ pub struct UiConfig {
     pub sidebar_agents_scope: SidebarAgentsScopeConfig,
     /// Show a workspace strip above the layout, browser-tab style. Default: false.
     pub workspace_bar: bool,
+    /// Show the active space's branch and ahead/behind counts in that strip. Default: false.
+    pub workspace_bar_git: bool,
     /// Command for the sidebar agent panel "+" button; runs in a new tab.
     /// Empty (default) hides the button.
     pub new_agent_command: String,
@@ -1156,6 +1158,7 @@ impl Default for UiConfig {
             status_indicators: StatusIndicatorStyle::Dots,
             sidebar_agents_scope: SidebarAgentsScopeConfig::All,
             workspace_bar: false,
+            workspace_bar_git: false,
             new_agent_command: String::new(),
             new_agent_menu: Vec::new(),
             sidebar: SidebarConfig::default(),

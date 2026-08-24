@@ -247,6 +247,12 @@ fn compute_view_internal(
         ),
         None => workspace_bar_rect,
     };
+    let workspace_cells_rect = Rect {
+        width: workspace_cells_rect
+            .width
+            .saturating_sub(workspace_bar::workspace_bar_git_width(app)),
+        ..workspace_cells_rect
+    };
     let workspace_bar_hit_areas = workspace_bar::workspace_bar_hit_areas(
         app,
         workspace_bar::workspace_cells_area(workspace_cells_rect),
@@ -991,6 +997,33 @@ mod tests {
             .workspace_bar_hit_areas
             .iter()
             .all(|r| r.x + r.width <= rect.x));
+    }
+
+    #[test]
+    fn workspace_bar_git_readout_reserves_room_left_of_the_cells() {
+        let mut app = crate::app::state::AppState::test_new();
+        let mut ws = Workspace::test_new("one");
+        ws.cached_git_branch = Some("main".into());
+        ws.cached_git_ahead_behind = Some((2, 1));
+        app.workspaces = vec![ws];
+        app.active = Some(0);
+        app.selected = 0;
+        app.mode = Mode::Terminal;
+        app.workspace_bar = true;
+
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+        assert_eq!(workspace_bar::workspace_bar_git_width(&app), 0);
+
+        app.workspace_bar_git = true;
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+        // " main" + " \u{2193}1" + " \u{2191}2" + trailing space
+        let width = workspace_bar::workspace_bar_git_width(&app);
+        assert_eq!(width, 12);
+        assert!(app
+            .view
+            .workspace_bar_hit_areas
+            .iter()
+            .all(|r| r.x + r.width <= 80 - width));
     }
 
     #[test]

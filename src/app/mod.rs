@@ -659,6 +659,7 @@ impl App {
             status_indicators: config.ui.status_indicators,
             sidebar_agents_scope: config.ui.sidebar_agents_scope,
             workspace_bar: config.ui.workspace_bar,
+            workspace_bar_git: config.ui.workspace_bar_git,
             new_agent_command: config.ui.new_agent_command.clone(),
             new_agent_menu: config.ui.new_agent_menu.clone(),
             agent_view_override: None,
@@ -1537,6 +1538,7 @@ impl App {
                 self.state.status_indicators = config.ui.status_indicators;
                 self.state.sidebar_agents_scope = config.ui.sidebar_agents_scope;
                 self.state.workspace_bar = config.ui.workspace_bar;
+                self.state.workspace_bar_git = config.ui.workspace_bar_git;
                 self.state.new_agent_command = config.ui.new_agent_command.clone();
                 self.state.new_agent_menu = config.ui.new_agent_menu.clone();
                 self.state.sidebar_agents = config.ui.sidebar.agents.clone();

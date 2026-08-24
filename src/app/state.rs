@@ -1542,6 +1542,7 @@ pub struct AppState {
     pub status_indicators: crate::config::StatusIndicatorStyle,
     pub sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig,
     pub workspace_bar: bool,
+    pub workspace_bar_git: bool,
     pub new_agent_command: String,
     pub new_agent_menu: Vec<crate::config::NewAgentMenuEntry>,
     /// Transient session-wide projection override for the built-in Agents view.
@@ -1955,6 +1956,7 @@ impl AppState {
             status_indicators: crate::config::StatusIndicatorStyle::Dots,
             sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig::All,
             workspace_bar: false,
+            workspace_bar_git: false,
             new_agent_command: String::new(),
             new_agent_menu: Vec::new(),
             agent_view_override: None,
