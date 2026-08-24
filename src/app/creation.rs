@@ -137,6 +137,52 @@ impl App {
         }
     }
 
+    /// "+" button in the agent panel: open a new tab running new_agent_command.
+    pub(crate) fn create_agent_tab(&mut self) {
+        if self.state.new_agent_command.is_empty() {
+            return;
+        }
+        let Some(ws_idx) = self.state.active else {
+            return;
+        };
+        let follow_cwd = self
+            .focused_pane_cwd_in_workspace(ws_idx)
+            .or_else(|| self.seed_cwd_from_workspace(ws_idx));
+        let initial_cwd = self.resolve_new_terminal_cwd(follow_cwd);
+        let argv = vec![
+            "/bin/sh".to_string(),
+            "-lc".to_string(),
+            self.state.new_agent_command.clone(),
+        ];
+        let (rows, cols) = self.state.estimate_pane_size();
+        let ws = &mut self.state.workspaces[ws_idx];
+        let created = ws.create_tab_argv_command(
+            rows,
+            cols,
+            initial_cwd,
+            &argv,
+            Vec::new(),
+            self.state.pane_scrollback_limit_bytes,
+            self.state.host_terminal_theme,
+            self.state.host_terminal_appearance,
+        );
+        let (idx, terminal, runtime) = match created {
+            Ok(created) => created,
+            Err(e) => {
+                tracing::error!(err = %e, "failed to create agent tab");
+                return;
+            }
+        };
+        let root_pane = self.state.workspaces[ws_idx].tabs[idx].root_pane;
+        self.terminal_runtimes.insert(terminal.id.clone(), runtime);
+        self.state.terminals.insert(terminal.id.clone(), terminal);
+        self.state.remove_alias_shadowed_by_new_pane(root_pane);
+        self.state.switch_workspace_tab(ws_idx, idx);
+        self.state.mode = Mode::Terminal;
+        self.emit_tab_created_events(ws_idx, idx);
+        self.schedule_session_save();
+    }
+
     #[cfg(test)]
     pub(crate) fn create_tab(&mut self) {
         let custom_name = self.state.requested_new_tab_name.take();

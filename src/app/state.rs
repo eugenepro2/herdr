@@ -1533,6 +1533,7 @@ pub struct AppState {
     pub status_indicators: crate::config::StatusIndicatorStyle,
     pub sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig,
     pub workspace_bar: bool,
+    pub new_agent_command: String,
     /// Transient session-wide projection override for the built-in Agents view.
     pub agent_view_override: Option<crate::api::schema::AgentViewSetParams>,
     pub sidebar_agents: crate::config::AgentsSidebarConfig,
@@ -1942,6 +1943,7 @@ impl AppState {
             status_indicators: crate::config::StatusIndicatorStyle::Dots,
             sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig::All,
             workspace_bar: false,
+            new_agent_command: String::new(),
             agent_view_override: None,
             sidebar_agents: crate::config::AgentsSidebarConfig::default(),
             sidebar_spaces: crate::config::SpacesSidebarConfig::default(),

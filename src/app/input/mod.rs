@@ -419,6 +419,7 @@ impl App {
                     MouseAction::FocusWorkspace { ws_idx } => {
                         self.focus_workspace_idx_via_api(ws_idx)
                     }
+                    MouseAction::NewAgentTab => self.create_agent_tab(),
                     MouseAction::LaunchCustomCommand { idx } => {
                         if let Some(binding) = self.state.keybinds.custom_commands.get(idx).cloned()
                         {

@@ -80,7 +80,7 @@ pub(crate) use self::{
     sidebar::{
         agent_entry_gap, agent_entry_height_in_body, agent_panel_body_rect, agent_panel_entries,
         agent_panel_scroll_for_target, agent_panel_scroll_metrics, agent_panel_scrollbar_rect,
-        agent_panel_toggle_rect, all_agent_panel_entries, collapsed_sidebar_sections,
+        agent_panel_new_agent_rect, agent_panel_toggle_rect, all_agent_panel_entries, collapsed_sidebar_sections,
         collapsed_sidebar_toggle_rect, compute_workspace_card_areas, expanded_sidebar_sections,
         expanded_sidebar_toggle_rect, normalized_workspace_scroll, sidebar_section_divider_rect,
         workspace_drop_slots, workspace_group_chevron_rect, workspace_list_entries,
@@ -929,6 +929,32 @@ mod tests {
             .workspace_bar_hit_areas
             .iter()
             .all(|r| r.x + r.width <= rect.x));
+    }
+
+    #[test]
+    fn agent_panel_new_button_rect_follows_new_agent_command() {
+        let mut app = crate::app::state::AppState::test_new();
+        app.workspaces = vec![Workspace::test_new("one")];
+        app.active = Some(0);
+        app.selected = 0;
+        app.mode = Mode::Terminal;
+
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+        let detail_area = {
+            let (_, detail) = expanded_sidebar_sections(app.view.sidebar_rect, app.sidebar_split());
+            detail
+        };
+        assert_eq!(
+            agent_panel_new_agent_rect(&app, detail_area),
+            Rect::default()
+        );
+
+        app.new_agent_command = "claude-cc".to_string();
+        let rect = agent_panel_new_agent_rect(&app, detail_area);
+        assert!(rect.width > 0);
+        let toggle = agent_panel_toggle_rect(detail_area, app.agent_panel_sort);
+        assert!(rect.x + rect.width < toggle.x);
+        assert_eq!(rect.y, toggle.y);
     }
 
     #[test]

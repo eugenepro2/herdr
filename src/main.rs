@@ -380,6 +380,10 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # Show a workspace strip above the layout to switch spaces like browser tabs.
 # workspace_bar = false
 
+# Command behind the "+" button in the sidebar agent panel; it opens a new tab
+# running the command via /bin/sh -lc. Empty hides the button.
+# new_agent_command = ""
+
 # Expanded agent rows. Built-ins are state_icon, state_text, workspace, tab, pane, agent,
 # terminal_title, and terminal_title_stripped.
 # Custom values reported through pane metadata use a $name token.

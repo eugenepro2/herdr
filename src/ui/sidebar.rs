@@ -94,6 +94,21 @@ pub(crate) fn agent_panel_toggle_rect(area: Rect, sort: AgentPanelSort) -> Rect 
     agent_panel_header_label_rect(area, agent_panel_sort_label(sort))
 }
 
+/// " + " button left of the sort toggle; hidden when new_agent_command is empty.
+pub(crate) fn agent_panel_new_agent_rect(app: &AppState, area: Rect) -> Rect {
+    if app.new_agent_command.is_empty() {
+        return Rect::default();
+    }
+    let control_label = active_agent_view_label(app)
+        .unwrap_or_else(|| agent_panel_sort_label(app.agent_panel_sort));
+    let toggle = agent_panel_header_label_rect(area, control_label);
+    let width = 3;
+    if toggle == Rect::default() || toggle.x < area.x.saturating_add(width + 1) {
+        return Rect::default();
+    }
+    Rect::new(toggle.x - width - 1, toggle.y, width, 1)
+}
+
 fn agent_panel_header_label_rect(area: Rect, label: &str) -> Rect {
     if area.width == 0 || area.height < 2 {
         return Rect::default();
@@ -1463,6 +1478,16 @@ fn render_agent_detail(
         )])),
         Rect::new(area.x, area.y + 1, area.width, 1),
     );
+    let new_agent_rect = agent_panel_new_agent_rect(app, area);
+    if new_agent_rect != Rect::default() {
+        frame.render_widget(
+            Paragraph::new(Span::styled(
+                " + ",
+                Style::default().fg(p.accent).add_modifier(Modifier::BOLD),
+            )),
+            new_agent_rect,
+        );
+    }
     let control_label = active_agent_view_label(app)
         .unwrap_or_else(|| agent_panel_sort_label(app.agent_panel_sort));
     let toggle_rect = agent_panel_header_label_rect(area, control_label);

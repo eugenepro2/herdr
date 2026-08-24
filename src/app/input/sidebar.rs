@@ -10,7 +10,7 @@ impl AppState {
         if self.sidebar_collapsed || sidebar.width <= 1 || sidebar.height == 0 {
             return Rect::default();
         }
-        crate::ui::workspace_list_rect(sidebar, self.sidebar_section_split)
+        crate::ui::workspace_list_rect(sidebar, self.sidebar_split())
     }
 
     pub(super) fn agent_panel_rect(&self) -> Rect {
@@ -19,7 +19,7 @@ impl AppState {
             return Rect::default();
         }
         let (_, detail_area) =
-            crate::ui::expanded_sidebar_sections(sidebar, self.sidebar_section_split);
+            crate::ui::expanded_sidebar_sections(sidebar, self.sidebar_split());
         detail_area
     }
 
@@ -465,6 +465,18 @@ impl AppState {
         })
     }
 
+    pub(super) fn on_agent_panel_new_button(&self, col: u16, row: u16) -> bool {
+        if self.sidebar_collapsed {
+            return false;
+        }
+        let rect = crate::ui::agent_panel_new_agent_rect(self, self.agent_panel_rect());
+        rect.width > 0
+            && col >= rect.x
+            && col < rect.x + rect.width
+            && row >= rect.y
+            && row < rect.y + rect.height
+    }
+
     pub(super) fn on_agent_panel_sort_toggle(&self, col: u16, row: u16) -> bool {
         if self.sidebar_collapsed || self.agent_view_override.is_some() {
             return false;
@@ -472,7 +484,7 @@ impl AppState {
 
         let (_, detail_area) = crate::ui::expanded_sidebar_sections(
             self.view.sidebar_rect,
-            self.sidebar_section_split,
+            self.sidebar_split(),
         );
         let rect = crate::ui::agent_panel_toggle_rect(detail_area, self.agent_panel_sort);
         rect.width > 0

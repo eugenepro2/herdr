@@ -917,6 +917,9 @@ pub struct UiConfig {
     pub sidebar_agents_scope: SidebarAgentsScopeConfig,
     /// Show a workspace strip above the layout, browser-tab style. Default: false.
     pub workspace_bar: bool,
+    /// Command for the sidebar agent panel "+" button; runs in a new tab.
+    /// Empty (default) hides the button.
+    pub new_agent_command: String,
     /// Expanded sidebar row composition.
     pub sidebar: SidebarConfig,
     /// Accent color for highlights, borders, and navigation UI.
@@ -1143,6 +1146,7 @@ impl Default for UiConfig {
             status_indicators: StatusIndicatorStyle::Dots,
             sidebar_agents_scope: SidebarAgentsScopeConfig::All,
             workspace_bar: false,
+            new_agent_command: String::new(),
             sidebar: SidebarConfig::default(),
             accent: "cyan".into(),
             toast: ToastConfig::default(),

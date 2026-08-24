@@ -34,6 +34,7 @@ pub(super) enum MouseAction {
     LaunchCustomCommand {
         idx: usize,
     },
+    NewAgentTab,
     FocusTab {
         tab_idx: usize,
     },
@@ -610,6 +611,10 @@ impl AppState {
                             },
                         );
                         return None;
+                    }
+
+                    if self.on_agent_panel_new_button(mouse.column, mouse.row) {
+                        return Some(MouseAction::NewAgentTab);
                     }
 
                     if self.on_agent_panel_sort_toggle(mouse.column, mouse.row) {
