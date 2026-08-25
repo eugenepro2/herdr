@@ -2069,6 +2069,11 @@ impl HeadlessServer {
                     non_empty_body(&toast.context),
                 );
             }
+        } else {
+            // `focus_on_click` keeps the toast here: the server shows it itself so
+            // the notification can carry a click action for the notifying pane.
+            self.app
+                .emit_delayed_client_local_agent_notifications(std::slice::from_ref(delivery));
         }
     }
 
@@ -11420,6 +11425,80 @@ next_tab = ""
                 .is_err(),
             "startup readiness should not forward a completion notification"
         );
+    }
+
+    #[test]
+    fn focus_on_click_keeps_the_delayed_toast_off_the_client() {
+        let mut server = test_headless_server();
+        let background = crate::workspace::Workspace::test_new("background");
+        let pane_id = background.tabs[0].root_pane;
+        let foreground = crate::workspace::Workspace::test_new("foreground");
+        server.app.state.workspaces = vec![background, foreground];
+        server.app.state.ensure_test_terminals();
+        server.app.state.active = Some(1);
+        server.app.state.selected = 1;
+        server.app.state.mode = crate::app::Mode::Terminal;
+        server.app.state.toast_config.delivery = crate::config::ToastDelivery::System;
+        server.app.state.toast_config.delay_seconds = 1;
+        server.app.state.toast_config.focus_on_click = true;
+        // The real server shows the toast itself here; keep the test off the
+        // desktop notification service.
+        server.app.local_terminal_notifications = false;
+
+        let (client_tx, client_control_rx, _client_rx) = test_client_writer();
+        server.clients.insert(
+            1,
+            ClientConnection::new(
+                (80, 24),
+                crate::kitty_graphics::HostCellSize::default(),
+                crate::terminal_theme::TerminalTheme::default(),
+                None,
+                1,
+                RenderEncoding::SemanticFrame,
+                Some(client_tx),
+            ),
+        );
+        server.foreground_client_id = Some(1);
+        server.sync_foreground_client_state();
+
+        assert!(
+            server.handle_internal_event_with_forwarding(AppEvent::StateChanged {
+                pane_id,
+                agent: Some(crate::detect::Agent::Pi),
+                state: crate::detect::AgentState::Blocked,
+                visible_blocker: false,
+                visible_working: false,
+                process_exited: false,
+                observed_at: Instant::now(),
+            })
+        );
+
+        let deadline = server
+            .app
+            .state
+            .next_pending_agent_notification_deadline()
+            .expect("pending notification deadline");
+        assert!(server.handle_scheduled_tasks_headless(deadline, false));
+
+        let first = read_server_message(
+            client_control_rx
+                .recv_timeout(Duration::from_millis(100))
+                .expect("delayed sound message"),
+        );
+        assert!(matches!(
+            first,
+            ServerMessage::Notify {
+                kind: protocol::NotifyKind::Sound,
+                ..
+            }
+        ));
+        assert!(
+            client_control_rx
+                .recv_timeout(Duration::from_millis(50))
+                .is_err(),
+            "focus_on_click must not forward the system toast to the client"
+        );
+        assert!(server.app.state.pending_agent_notifications.is_empty());
     }
 
     #[test]
