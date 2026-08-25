@@ -673,8 +673,9 @@ impl App {
         let public_pane_id = self.public_pane_id(ws_idx, pane_id)?;
         let exe = std::env::current_exe().ok()?;
         let exe = format!("'{}'", exe.display().to_string().replace('\'', "'\\''"));
+        // `pane focus` needs a direction; `agent focus` takes the pane id itself.
         Some(format!(
-            "{exe} workspace focus {ws} && {exe} tab focus {tab_id} && {exe} pane focus --pane {public_pane_id}",
+            "{exe} workspace focus {ws} && {exe} tab focus {tab_id} && {exe} agent focus {public_pane_id}",
             ws = ws.id
         ))
     }
@@ -2276,6 +2277,32 @@ mod tests {
             app.runtime_exit_action(pane_id),
             RuntimeExitAction::ClosePane
         );
+    }
+
+    #[test]
+    fn notification_focus_action_focuses_the_pane_by_id() {
+        let (_api_tx, api_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut app = App::new(
+            &crate::config::Config::default(),
+            true,
+            None,
+            api_rx,
+            crate::api::EventHub::default(),
+        );
+        let workspace = crate::workspace::Workspace::test_new("solo");
+        let pane_id = workspace.tabs[0].root_pane;
+        app.state.workspaces = vec![workspace];
+        app.state.ensure_test_terminals();
+
+        let action = app
+            .notification_focus_action(0, pane_id)
+            .expect("focus action");
+
+        assert!(action.contains("workspace focus"), "{action}");
+        assert!(action.contains("tab focus"), "{action}");
+        // `pane focus` requires a direction and would fail from a notification.
+        assert!(action.contains("agent focus"), "{action}");
+        assert!(!action.contains("pane focus"), "{action}");
     }
 
     #[test]
