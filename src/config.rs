@@ -18,16 +18,14 @@ pub use self::{
     keybinds::{
         format_key_combo, normalize_key_combo, terminal_key_matches_combo, ActionKeybinds,
         BindingConfig, ButtonPosition, CommandKeybindConfig, CustomCommandAction,
-        CustomCommandKeybind,
-        IndexedKeybind, Keybinds, LiveKeybindConfig,
+        CustomCommandKeybind, IndexedKeybind, Keybinds, LiveKeybindConfig,
     },
     model::{
         validated_sidebar_bounds, AgentPanelSortConfig, Config, ConfigReloadReport,
-        ConfigReloadStatus, HostCursorModeConfig, NewTerminalCwdConfig, ShellModeConfig,
-        NewAgentMenuEntry, SidebarAgentsScopeConfig, SidebarCollapsedModeConfig,
-        StatusIndicatorStyle,
-        TabBarPositionConfig, ToastClipboardPosition, ToastConfig, ToastDelivery,
-        ToastHerdrPosition, UpdateChannelConfig, MAX_TOAST_DELAY_SECONDS,
+        ConfigReloadStatus, HostCursorModeConfig, NewAgentMenuEntry, NewTerminalCwdConfig,
+        ShellModeConfig, SidebarAgentsScopeConfig, SidebarCollapsedModeConfig,
+        StatusIndicatorStyle, TabBarPositionConfig, ToastClipboardPosition, ToastConfig,
+        ToastDelivery, ToastHerdrPosition, UpdateChannelConfig, MAX_TOAST_DELAY_SECONDS,
     },
     sidebar::{
         AgentSidebarToken, AgentsSidebarConfig, SidebarConfig, SidebarTokenStyle,

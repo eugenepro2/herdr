@@ -18,8 +18,7 @@ impl AppState {
         if self.sidebar_collapsed || sidebar.width <= 1 || sidebar.height == 0 {
             return Rect::default();
         }
-        let (_, detail_area) =
-            crate::ui::expanded_sidebar_sections(sidebar, self.sidebar_split());
+        let (_, detail_area) = crate::ui::expanded_sidebar_sections(sidebar, self.sidebar_split());
         detail_area
     }
 
@@ -276,10 +275,8 @@ impl AppState {
         if self.sidebar_collapsed {
             return false;
         }
-        let rect = crate::ui::sidebar_section_divider_rect(
-            self.view.sidebar_rect,
-            self.sidebar_split(),
-        );
+        let rect =
+            crate::ui::sidebar_section_divider_rect(self.view.sidebar_rect, self.sidebar_split());
         rect.width > 0
             && col >= rect.x
             && col < rect.x + rect.width
@@ -482,10 +479,8 @@ impl AppState {
             return false;
         }
 
-        let (_, detail_area) = crate::ui::expanded_sidebar_sections(
-            self.view.sidebar_rect,
-            self.sidebar_split(),
-        );
+        let (_, detail_area) =
+            crate::ui::expanded_sidebar_sections(self.view.sidebar_rect, self.sidebar_split());
         let rect = crate::ui::agent_panel_toggle_rect(detail_area, self.agent_panel_sort);
         rect.width > 0
             && col >= rect.x
@@ -1964,8 +1959,7 @@ mod tests {
                 command: "claude-cc -r".into(),
             },
         ];
-        let rect =
-            crate::ui::agent_panel_new_agent_rect(&app.state, app.state.agent_panel_rect());
+        let rect = crate::ui::agent_panel_new_agent_rect(&app.state, app.state.agent_panel_rect());
         assert!(rect.width > 0);
 
         app.handle_mouse(mouse(

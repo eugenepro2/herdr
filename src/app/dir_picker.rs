@@ -167,7 +167,10 @@ mod tests {
     fn lists_sorted_subdirs_and_walks_in_and_out() {
         let root = temp_tree();
         let mut picker = DirPickerState::open(root.clone());
-        assert_eq!(picker.entries, vec!["Alpha".to_string(), "beta".to_string()]);
+        assert_eq!(
+            picker.entries,
+            vec!["Alpha".to_string(), "beta".to_string()]
+        );
         assert_eq!(
             picker.rows(),
             vec![
@@ -200,7 +203,10 @@ mod tests {
         // ← walks back out and lands on the directory we left
         assert!(picker.ascend());
         assert_eq!(picker.dir, root);
-        assert_eq!(picker.selected_row(), Some(DirPickerRow::Dir("beta".into())));
+        assert_eq!(
+            picker.selected_row(),
+            Some(DirPickerRow::Dir("beta".into()))
+        );
 
         let _ = std::fs::remove_dir_all(&root);
     }

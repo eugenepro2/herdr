@@ -386,6 +386,7 @@ impl App {
 
         changed |= self.expire_due_metadata(now);
         changed |= self.handle_tab_bar_status_tasks(now);
+        changed |= self.tick_working_animation(now);
 
         if geometry_dirty || resized {
             self.pending_agent_resume_deadline = None;
@@ -628,6 +629,7 @@ impl App {
             self.selection_autoscroll_deadline,
             self.selection_highlight_clear_deadline,
             self.next_tab_bar_status_deadline(),
+            self.next_working_animation_deadline(),
             render_deadline,
         ]
         .into_iter()

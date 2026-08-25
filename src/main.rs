@@ -373,6 +373,10 @@ const DEFAULT_CONFIG: &str = r##"# herdr configuration
 # distinct static glyphs for blocked, working, done, idle, and unknown states.
 # status_indicators = "dots"
 
+# Animate the status indicator while an agent is working, like the Claude Code
+# spinner. Applies to the sidebar and the workspace strip.
+# status_indicator_animation = false
+
 # Sidebar agent rows scope: "all" lists agents from every space; "active" only
 # the focused space.
 # sidebar_agents_scope = "all"

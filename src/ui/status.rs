@@ -218,8 +218,38 @@ pub(super) fn state_icon(
     indicator_style: StatusIndicatorStyle,
     p: &Palette,
 ) -> (&'static str, Style) {
+    state_icon_anim(state, seen, indicator_style, None, p)
+}
+
+/// Fork: frames of the working-state animation, mirroring the Claude Code
+/// spinner. Every frame is one cell wide.
+pub(super) const WORKING_ANIM_FRAMES: [&str; 6] = [
+    "\u{b7}", "\u{2722}", "\u{2733}", "\u{2217}", "\u{273b}", "\u{273d}",
+];
+
+/// Fork: `Some(frame)` while the animated working indicator is enabled.
+pub(super) fn working_anim_frame(app: &crate::app::state::AppState) -> Option<u8> {
+    app.status_indicator_animation
+        .then_some(app.working_anim_frame)
+}
+
+/// Fork: like [`state_icon`], but swaps the working symbol for an animation
+/// frame when `anim` is set.
+pub(super) fn state_icon_anim(
+    state: AgentState,
+    seen: bool,
+    indicator_style: StatusIndicatorStyle,
+    anim: Option<u8>,
+    p: &Palette,
+) -> (&'static str, Style) {
+    let symbol = match (state, anim) {
+        (AgentState::Working, Some(frame)) => {
+            WORKING_ANIM_FRAMES[frame as usize % WORKING_ANIM_FRAMES.len()]
+        }
+        _ => state_icon_symbol(state, seen, indicator_style),
+    };
     (
-        state_icon_symbol(state, seen, indicator_style),
+        symbol,
         Style::default().fg(state_label_color(state, seen, p)),
     )
 }
@@ -288,6 +318,34 @@ mod tests {
                 assert_eq!(style.fg, Some(color));
             }
         }
+    }
+
+    #[test]
+    fn working_animation_cycles_one_cell_frames_and_leaves_other_states_alone() {
+        let palette = Palette::catppuccin();
+        let style = StatusIndicatorStyle::Dots;
+
+        for frame in 0..(WORKING_ANIM_FRAMES.len() as u8 * 2) {
+            let (symbol, _) =
+                state_icon_anim(AgentState::Working, true, style, Some(frame), &palette);
+            assert_eq!(
+                symbol,
+                WORKING_ANIM_FRAMES[frame as usize % WORKING_ANIM_FRAMES.len()]
+            );
+            assert_eq!(display_width_u16(symbol), 1);
+        }
+
+        for state in [AgentState::Blocked, AgentState::Idle, AgentState::Unknown] {
+            assert_eq!(
+                state_icon_anim(state, true, style, Some(3), &palette).0,
+                state_icon_symbol(state, true, style)
+            );
+        }
+
+        assert_eq!(
+            state_icon_anim(AgentState::Working, true, style, None, &palette).0,
+            state_icon_symbol(AgentState::Working, true, style)
+        );
     }
 
     #[test]

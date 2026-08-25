@@ -4976,8 +4976,7 @@ mod tests {
         assert_eq!(app.state.mode, Mode::PickWorkspaceDir);
 
         // point the picker at our temp tree, then click the "proj" row
-        app.state.dir_picker =
-            Some(crate::app::dir_picker::DirPickerState::open(root.clone()));
+        app.state.dir_picker = Some(crate::app::dir_picker::DirPickerState::open(root.clone()));
         let list = crate::ui::dir_picker_list_rect(&app.state).unwrap();
         let rows = app.state.dir_picker.as_ref().unwrap().rows();
         let proj_idx = rows
@@ -4989,7 +4988,10 @@ mod tests {
             list.x + 1,
             list.y + proj_idx as u16,
         ));
-        assert_eq!(app.state.dir_picker.as_ref().unwrap().dir, root.join("proj"));
+        assert_eq!(
+            app.state.dir_picker.as_ref().unwrap().dir,
+            root.join("proj")
+        );
 
         // enter on "create here" hands the path to the workspace create request
         app.state.dir_picker.as_mut().unwrap().selected = 0;

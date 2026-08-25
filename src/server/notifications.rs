@@ -6,13 +6,16 @@ use crate::layout::PaneId;
 use crate::protocol;
 use crate::terminal::TerminalRuntimeRegistry;
 
-pub(crate) fn should_forward_toast_to_clients(delivery: config::ToastDelivery) -> bool {
-    toast_notify_kind(delivery).is_some()
+pub(crate) fn should_forward_toast_to_clients(toast: &config::ToastConfig) -> bool {
+    toast_notify_kind(toast).is_some()
 }
 
-pub(crate) fn toast_notify_kind(delivery: config::ToastDelivery) -> Option<protocol::NotifyKind> {
-    match delivery {
+pub(crate) fn toast_notify_kind(toast: &config::ToastConfig) -> Option<protocol::NotifyKind> {
+    match toast.delivery {
         config::ToastDelivery::Terminal => Some(protocol::NotifyKind::Toast),
+        // With `focus_on_click`, the server emits the system toast itself so the
+        // notification carries a click action; forwarding it would duplicate it.
+        config::ToastDelivery::System if toast.focus_on_click => None,
         config::ToastDelivery::System => Some(protocol::NotifyKind::SystemToast),
         config::ToastDelivery::Off | config::ToastDelivery::Herdr => None,
     }

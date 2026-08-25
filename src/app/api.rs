@@ -803,7 +803,11 @@ impl App {
                 .iter()
                 .position(|ws| ws.id == delivery.workspace_id)
                 .and_then(|ws_idx| self.notification_focus_action(ws_idx, delivery.pane_id));
-            let _ = self.notify_terminal_or_system(&toast.title, Some(&toast.context), action.as_deref());
+            let _ = self.notify_terminal_or_system(
+                &toast.title,
+                Some(&toast.context),
+                action.as_deref(),
+            );
         }
     }
 

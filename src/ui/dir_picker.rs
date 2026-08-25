@@ -88,7 +88,10 @@ pub(super) fn render_dir_picker_overlay(app: &AppState, frame: &mut Frame, area:
         p,
     );
     frame.render_widget(
-        Paragraph::new(middle_elide(&home_relative(&picker.dir), inner.width as usize))
+        Paragraph::new(middle_elide(
+            &home_relative(&picker.dir),
+            inner.width as usize,
+        ))
         .style(Style::default().fg(p.subtext0)),
         Rect::new(inner.x, inner.y + 1, inner.width, 1),
     );
@@ -98,13 +101,13 @@ pub(super) fn render_dir_picker_overlay(app: &AppState, frame: &mut Frame, area:
         format!("фильтр: {}", picker.query)
     };
     frame.render_widget(
-        Paragraph::new(truncate_end(&filter, inner.width as usize)).style(
-            Style::default().fg(if picker.query.is_empty() {
+        Paragraph::new(truncate_end(&filter, inner.width as usize)).style(Style::default().fg(
+            if picker.query.is_empty() {
                 p.overlay0
             } else {
                 p.accent
-            }),
-        ),
+            },
+        )),
         Rect::new(inner.x, inner.y + 2, inner.width, 1),
     );
     frame.render_widget(

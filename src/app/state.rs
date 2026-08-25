@@ -1541,6 +1541,11 @@ pub struct AppState {
     pub sidebar_section_split: f32,
     pub agent_panel_sort: AgentPanelSort,
     pub status_indicators: crate::config::StatusIndicatorStyle,
+    /// Fork: animate the working indicator (see `working_icon_frame`).
+    pub status_indicator_animation: bool,
+    /// Fork: current frame of the working-indicator animation, advanced by the
+    /// runtime tick while any agent is working.
+    pub working_anim_frame: u8,
     pub sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig,
     pub workspace_bar: bool,
     pub sidebar_git_footer: bool,
@@ -1959,6 +1964,8 @@ impl AppState {
             sidebar_section_split: 0.5,
             agent_panel_sort: AgentPanelSort::Spaces,
             status_indicators: crate::config::StatusIndicatorStyle::Dots,
+            status_indicator_animation: false,
+            working_anim_frame: 0,
             sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig::All,
             workspace_bar: false,
             sidebar_git_footer: false,

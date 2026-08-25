@@ -17,17 +17,21 @@ mod release_notes;
 mod scrollbar;
 mod settings;
 mod sidebar;
+mod sidebar_footer;
 mod status;
 mod tab_surface;
 mod tabs;
 mod text;
 mod widgets;
-mod sidebar_footer;
 mod workspace_bar;
 
 use self::dialogs::{
     render_confirm_close_overlay, render_new_linked_worktree_overlay,
     render_open_existing_worktree_overlay, render_remove_worktree_overlay, render_rename_overlay,
+};
+use self::dir_picker::render_dir_picker_overlay;
+pub(crate) use self::dir_picker::{
+    dir_picker_list_rect, dir_picker_popup_rect, dir_picker_scroll_start,
 };
 use self::keybind_help::render_keybind_help_overlay;
 use self::menus::{
@@ -57,8 +61,8 @@ pub(crate) use self::scrollbar::{
 use self::settings::render_settings_overlay;
 #[cfg(test)]
 pub(crate) use self::sidebar::workspace_drop_indicator_row;
-pub(crate) use self::sidebar_footer::button_hit_areas as sidebar_footer_button_hit_areas;
 use self::sidebar::{render_sidebar, render_sidebar_collapsed};
+pub(crate) use self::sidebar_footer::button_hit_areas as sidebar_footer_button_hit_areas;
 use self::status::{
     copy_feedback_rect, render_config_diagnostic, render_copy_feedback, render_toast_notification,
     toast_notification_rect,
@@ -68,8 +72,6 @@ pub(crate) use self::tab_surface::{
 };
 use self::tabs::render_tab_bar;
 use self::workspace_bar::render_workspace_bar;
-pub(crate) use self::dir_picker::{dir_picker_list_rect, dir_picker_popup_rect, dir_picker_scroll_start};
-use self::dir_picker::render_dir_picker_overlay;
 pub(crate) use self::{
     dialogs::{
         confirm_close_button_rects, confirm_close_popup_rect, new_linked_worktree_button_rects,
@@ -84,14 +86,14 @@ pub(crate) use self::{
     },
     sidebar::{
         agent_entry_gap, agent_entry_height_in_body, agent_panel_body_rect, agent_panel_entries,
-        agent_panel_scroll_for_target, agent_panel_scroll_metrics, agent_panel_scrollbar_rect,
-        agent_panel_new_agent_rect, agent_panel_toggle_rect, all_agent_panel_entries, collapsed_sidebar_sections,
-        collapsed_sidebar_toggle_rect, compute_workspace_card_areas, expanded_sidebar_sections,
-        expanded_sidebar_toggle_rect, normalized_workspace_scroll, sidebar_section_divider_rect,
-        workspace_drop_slots, workspace_group_chevron_rect, workspace_list_entries,
-        workspace_list_entries_expanded, workspace_list_rect, workspace_list_scroll_metrics,
-        workspace_list_scrollbar_rect, workspace_parent_group_state, AgentPanelEntry,
-        WorkspaceListEntry,
+        agent_panel_new_agent_rect, agent_panel_scroll_for_target, agent_panel_scroll_metrics,
+        agent_panel_scrollbar_rect, agent_panel_toggle_rect, all_agent_panel_entries,
+        collapsed_sidebar_sections, collapsed_sidebar_toggle_rect, compute_workspace_card_areas,
+        expanded_sidebar_sections, expanded_sidebar_toggle_rect, normalized_workspace_scroll,
+        sidebar_section_divider_rect, workspace_drop_slots, workspace_group_chevron_rect,
+        workspace_list_entries, workspace_list_entries_expanded, workspace_list_rect,
+        workspace_list_scroll_metrics, workspace_list_scrollbar_rect, workspace_parent_group_state,
+        AgentPanelEntry, WorkspaceListEntry,
     },
 };
 
@@ -1071,7 +1073,10 @@ mod tests {
         // git row plus button row, taken off the bottom of the sidebar
         let footer = app.view.sidebar_footer_rect;
         assert_eq!(footer.height, 2);
-        assert_eq!(footer.y, app.view.sidebar_rect.y + app.view.sidebar_rect.height);
+        assert_eq!(
+            footer.y,
+            app.view.sidebar_rect.y + app.view.sidebar_rect.height
+        );
         assert_eq!(footer.y + footer.height, 20);
 
         // the button sits on the footer's last row and answers clicks there

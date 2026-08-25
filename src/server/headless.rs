@@ -2012,7 +2012,7 @@ impl HeadlessServer {
             }
         }
 
-        if !should_forward_toast_to_clients(self.app.state.toast_config.delivery) {
+        if !should_forward_toast_to_clients(&self.app.state.toast_config) {
             return;
         }
         let Some(kind) = crate::app::actions::notification_toast_for_pane_state_update(
@@ -2041,7 +2041,7 @@ impl HeadlessServer {
             update.pane_id,
         );
         self.send_notify_to_foreground_client(
-            toast_notify_kind(self.app.state.toast_config.delivery)
+            toast_notify_kind(&self.app.state.toast_config)
                 .expect("toast forwarding requires a client notification kind"),
             format!("{agent_label} {event_text}"),
             non_empty_body(&context),
@@ -2060,10 +2060,10 @@ impl HeadlessServer {
             );
         }
 
-        if should_forward_toast_to_clients(self.app.state.toast_config.delivery) {
+        if should_forward_toast_to_clients(&self.app.state.toast_config) {
             if let Some(toast) = &delivery.client_notification {
                 self.send_notify_to_foreground_client(
-                    toast_notify_kind(self.app.state.toast_config.delivery)
+                    toast_notify_kind(&self.app.state.toast_config)
                         .expect("toast forwarding requires a client notification kind"),
                     &toast.title,
                     non_empty_body(&toast.context),
@@ -2153,7 +2153,7 @@ impl HeadlessServer {
             })
             .unwrap_or_else(|_| "{}".to_string());
         }
-        let kind = toast_notify_kind(self.app.state.toast_config.delivery)
+        let kind = toast_notify_kind(&self.app.state.toast_config)
             .expect("terminal/system delivery has notify kind");
         let shown = self.send_notify_to_foreground_client(kind, title, body);
         if shown {
@@ -2402,7 +2402,7 @@ impl HeadlessServer {
 
                 let toast_msg = if !suppress_completion
                     && self.app.state.toast_config.delay_seconds == 0
-                    && should_forward_toast_to_clients(self.app.state.toast_config.delivery)
+                    && should_forward_toast_to_clients(&self.app.state.toast_config)
                 {
                     if self.app.state.toast.is_some() && self.app.state.toast != toast_before {
                         self.app
@@ -2427,7 +2427,7 @@ impl HeadlessServer {
 
                 if let Some(msg) = toast_msg {
                     self.send_flat_toast_to_foreground_client(
-                        toast_notify_kind(self.app.state.toast_config.delivery)
+                        toast_notify_kind(&self.app.state.toast_config)
                             .expect("toast forwarding requires a client notification kind"),
                         msg,
                     );
@@ -2500,7 +2500,7 @@ impl HeadlessServer {
 
                 let toast_msg = if !suppress_completion
                     && self.app.state.toast_config.delay_seconds == 0
-                    && should_forward_toast_to_clients(self.app.state.toast_config.delivery)
+                    && should_forward_toast_to_clients(&self.app.state.toast_config)
                 {
                     if self.app.state.toast.is_some() && self.app.state.toast != toast_before {
                         self.app
@@ -2525,7 +2525,7 @@ impl HeadlessServer {
 
                 if let Some(msg) = toast_msg {
                     self.send_flat_toast_to_foreground_client(
-                        toast_notify_kind(self.app.state.toast_config.delivery)
+                        toast_notify_kind(&self.app.state.toast_config)
                             .expect("toast forwarding requires a client notification kind"),
                         msg,
                     );
@@ -2544,7 +2544,7 @@ impl HeadlessServer {
                 self.app.handle_internal_event(ev);
 
                 let toast_msg =
-                    if should_forward_toast_to_clients(self.app.state.toast_config.delivery) {
+                    if should_forward_toast_to_clients(&self.app.state.toast_config) {
                         if self.app.state.toast.is_some() && self.app.state.toast != toast_before {
                             self.app
                                 .state
@@ -2563,7 +2563,7 @@ impl HeadlessServer {
 
                 if let Some(msg) = toast_msg {
                     self.send_flat_toast_to_foreground_client(
-                        toast_notify_kind(self.app.state.toast_config.delivery)
+                        toast_notify_kind(&self.app.state.toast_config)
                             .expect("toast forwarding requires a client notification kind"),
                         msg,
                     );
@@ -3826,15 +3826,13 @@ impl HeadlessServer {
         // Herdr delivery renders the toast in-frame and must not ask clients to
         // show a terminal or system notification.
         let toast_after = self.app.state.toast.clone();
-        let forwarded_toast_from_state = if should_forward_toast_to_clients(
-            self.app.state.toast_config.delivery,
-        ) && toast_after.is_some()
+        let forwarded_toast_from_state = if should_forward_toast_to_clients(&self.app.state.toast_config) && toast_after.is_some()
             && toast_after != toast_before
         {
             if let Some(toast) = &toast_after {
                 debug!(title = %toast.title, body = %toast.context, "forwarding toast notification from API request");
                 self.send_notify_to_foreground_client(
-                    toast_notify_kind(self.app.state.toast_config.delivery)
+                    toast_notify_kind(&self.app.state.toast_config)
                         .expect("toast forwarding requires a client notification kind"),
                     &toast.title,
                     non_empty_body(&toast.context),
@@ -3894,7 +3892,7 @@ impl HeadlessServer {
 
             if !forwarded_toast_from_state
                 && self.app.state.toast_config.delay_seconds == 0
-                && should_forward_toast_to_clients(self.app.state.toast_config.delivery)
+                && should_forward_toast_to_clients(&self.app.state.toast_config)
             {
                 if let Some(kind) =
                     crate::app::actions::notification_toast_for_state_change_with_agent_labels(
@@ -3928,7 +3926,7 @@ impl HeadlessServer {
                             *pane_id,
                         );
                         self.send_notify_to_foreground_client(
-                            toast_notify_kind(self.app.state.toast_config.delivery)
+                            toast_notify_kind(&self.app.state.toast_config)
                                 .expect("toast forwarding requires a client notification kind"),
                             format!("{agent_label} {event_text}"),
                             non_empty_body(&context),
@@ -5108,7 +5106,13 @@ pub fn run_server() -> io::Result<()> {
         // The prefix input-source switch is likewise forwarded to the foreground
         // client (ServerMessage::PrefixInputSource), never applied in-process.
         app.state.local_sound_playback = false;
-        app.local_terminal_notifications = false;
+        // `focus_on_click` keeps macOS system toasts in the server process: only
+        // there is the pane known, so the notification can carry a focus action.
+        app.local_terminal_notifications = app.state.toast_config.focus_on_click
+            && matches!(
+                app.state.toast_config.delivery,
+                crate::config::ToastDelivery::System
+            );
         app.local_input_source_switch = false;
 
         // Create the headless server.

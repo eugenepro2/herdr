@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
 };
 
-use super::status::state_icon;
+use super::status::{state_icon_anim, working_anim_frame};
 use super::text::display_width_u16;
 use super::widgets::panel_contrast_fg;
 use crate::app::AppState;
@@ -126,7 +126,13 @@ pub(super) fn render_workspace_bar(app: &AppState, frame: &mut Frame, area: Rect
             Style::default().fg(p.overlay1).bg(p.surface0)
         };
         let (state, seen) = ws.aggregate_state(&app.terminals);
-        let (icon, icon_style) = state_icon(state, seen, app.status_indicators, p);
+        let (icon, icon_style) = state_icon_anim(
+            state,
+            seen,
+            app.status_indicators,
+            working_anim_frame(app),
+            p,
+        );
         let icon_style = if active {
             cell_style
         } else {

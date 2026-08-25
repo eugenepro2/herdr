@@ -13,8 +13,8 @@ mod api;
 mod api_helpers;
 pub(crate) use api_helpers::limit_snapshot_lines;
 mod config_io;
-pub(crate) mod dir_picker;
 mod creation;
+pub(crate) mod dir_picker;
 mod git_refresh;
 mod ids;
 mod input;
@@ -24,6 +24,7 @@ mod runtime;
 mod runtime_mutations;
 mod session;
 pub mod state;
+mod status_animation;
 mod tab_bar_status;
 mod terminal_targets;
 mod terminal_titles;
@@ -147,6 +148,8 @@ pub struct App {
     tab_bar_datetimes: Vec<tab_bar_status::TabBarDatetimeRuntime>,
     tab_bar_commands: Vec<tab_bar_status::TabBarCommandRuntime>,
     next_tab_bar_datetime_refresh: Option<Instant>,
+    /// Fork: next frame deadline of the working-indicator animation.
+    next_working_anim_tick: Option<Instant>,
     /// Parsed `ui.window_title` plus the hostname resolved when it was applied.
     window_title_template: Option<(crate::config::WindowTitleTemplate, String)>,
     pub(crate) persist_pane_history: bool,
@@ -658,6 +661,8 @@ impl App {
             sidebar_section_split,
             agent_panel_sort,
             status_indicators: config.ui.status_indicators,
+            status_indicator_animation: config.ui.status_indicator_animation,
+            working_anim_frame: 0,
             sidebar_agents_scope: config.ui.sidebar_agents_scope,
             tab_bar_contrast: config.ui.tab_bar_contrast,
             sidebar_divider: config.ui.sidebar_divider,
@@ -812,6 +817,7 @@ impl App {
             tab_bar_datetimes: Vec::new(),
             tab_bar_commands: Vec::new(),
             next_tab_bar_datetime_refresh: None,
+            next_working_anim_tick: None,
             window_title_template: None,
             selection_autoscroll_deadline: None,
             selection_highlight_clear_deadline: None,
@@ -1540,6 +1546,7 @@ impl App {
                 self.state.agent_panel_sort =
                     agent_panel_sort_from_config(config.ui.agent_panel_sort);
                 self.state.status_indicators = config.ui.status_indicators;
+                self.state.status_indicator_animation = config.ui.status_indicator_animation;
                 self.state.sidebar_agents_scope = config.ui.sidebar_agents_scope;
                 self.state.tab_bar_contrast = config.ui.tab_bar_contrast;
                 self.state.sidebar_divider = config.ui.sidebar_divider;

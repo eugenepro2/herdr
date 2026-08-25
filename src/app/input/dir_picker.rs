@@ -114,8 +114,8 @@ pub(crate) fn dir_picker_row_at(state: &AppState, col: u16, row: u16) -> Option<
     if col < list.x || col >= list.x + list.width || row < list.y || row >= list.y + list.height {
         return None;
     }
-    let idx = crate::ui::dir_picker_scroll_start(picker, list.height as usize)
-        + (row - list.y) as usize;
+    let idx =
+        crate::ui::dir_picker_scroll_start(picker, list.height as usize) + (row - list.y) as usize;
     (idx < picker.rows().len()).then_some(idx)
 }
 

@@ -224,6 +224,9 @@ fn parse_right_click_passthrough_modifier(value: &str) -> Option<Option<KeyModif
 pub struct ToastConfig {
     pub delivery: ToastDelivery,
     pub delay_seconds: u64,
+    /// macOS: show system toasts from the server process so a click can focus
+    /// the notifying workspace/tab/pane instead of just raising the terminal.
+    pub focus_on_click: bool,
     pub herdr: HerdrToastConfig,
     pub clipboard: ClipboardToastConfig,
 }
@@ -930,6 +933,9 @@ pub struct UiConfig {
     _legacy_agent_panel_scope: Option<LegacyAgentPanelScopeConfig>,
     /// Agent status indicator style. Saved values are "dots" or "symbols". Default: "dots".
     pub status_indicators: StatusIndicatorStyle,
+    /// Fork: animate the status indicator while an agent is working, like the
+    /// Claude Code spinner. Default: false.
+    pub status_indicator_animation: bool,
     /// Sidebar agent rows scope: "all" workspaces or only the "active" one. Default: "all".
     pub sidebar_agents_scope: SidebarAgentsScopeConfig,
     /// Show a workspace strip above the layout, browser-tab style. Default: false.
@@ -1169,6 +1175,7 @@ impl Default for UiConfig {
             agent_panel_sort: AgentPanelSortConfig::Spaces,
             _legacy_agent_panel_scope: None,
             status_indicators: StatusIndicatorStyle::Dots,
+            status_indicator_animation: false,
             sidebar_agents_scope: SidebarAgentsScopeConfig::All,
             workspace_bar: false,
             sidebar_git_footer: false,
@@ -1199,6 +1206,7 @@ impl Default for ToastConfig {
         Self {
             delivery: ToastDelivery::Off,
             delay_seconds: 1,
+            focus_on_click: false,
             herdr: HerdrToastConfig::default(),
             clipboard: ClipboardToastConfig::default(),
         }
@@ -1233,6 +1241,7 @@ impl<'de> Deserialize<'de> for ToastConfig {
             delivery: Option<ToastDelivery>,
             enabled: Option<bool>,
             delay_seconds: Option<u64>,
+            focus_on_click: Option<bool>,
             herdr: HerdrToastConfig,
             clipboard: ClipboardToastConfig,
         }
@@ -1253,6 +1262,7 @@ impl<'de> Deserialize<'de> for ToastConfig {
         Ok(Self {
             delivery,
             delay_seconds,
+            focus_on_click: raw.focus_on_click.unwrap_or(default.focus_on_click),
             herdr: raw.herdr,
             clipboard: raw.clipboard,
         })
