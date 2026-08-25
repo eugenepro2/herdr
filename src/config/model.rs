@@ -123,6 +123,9 @@ pub enum StatusIndicatorStyle {
     #[default]
     Dots,
     Symbols,
+    /// Fork: one glyph family in the Claude Code spirit — stars of rising
+    /// density, plus a check mark for finished work.
+    Claude,
 }
 
 impl StatusIndicatorStyle {
@@ -130,6 +133,7 @@ impl StatusIndicatorStyle {
         match self {
             Self::Dots => "dots",
             Self::Symbols => "symbols",
+            Self::Claude => "claude",
         }
     }
 }

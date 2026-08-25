@@ -115,6 +115,7 @@ pub(super) fn render_settings_overlay(app: &AppState, frame: &mut Frame, area: R
                 &[
                     ("color dots  ● ● ● ○ ·", StatusIndicatorStyle::Dots),
                     ("distinct symbols  × ◐ ✓ ○ ·", StatusIndicatorStyle::Symbols),
+                    ("claude stars  ✻ ✳ ✓ ✢ ·", StatusIndicatorStyle::Claude),
                 ],
                 app.status_indicators,
                 app.settings.list.selected,

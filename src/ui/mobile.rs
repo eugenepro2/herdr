@@ -1088,7 +1088,9 @@ fn agent_summary_text(
 ) -> String {
     let symbol = match indicator_style {
         StatusIndicatorStyle::Dots => dot_style_symbol,
-        StatusIndicatorStyle::Symbols => Some(state_icon_symbol(state, seen, indicator_style)),
+        StatusIndicatorStyle::Symbols | StatusIndicatorStyle::Claude => {
+            Some(state_icon_symbol(state, seen, indicator_style))
+        }
     };
     match symbol {
         Some(symbol) => format!("{symbol} {count} {label}"),

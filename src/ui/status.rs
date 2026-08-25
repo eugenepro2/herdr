@@ -209,6 +209,12 @@ pub(super) fn state_icon_symbol(
         (StatusIndicatorStyle::Symbols, AgentState::Idle, false) => "✓",
         (StatusIndicatorStyle::Symbols, AgentState::Idle, true) => "○",
         (StatusIndicatorStyle::Symbols, AgentState::Unknown, _) => "·",
+        // Fork: one star family, denser the more attention a state wants.
+        (StatusIndicatorStyle::Claude, AgentState::Blocked, _) => "✻",
+        (StatusIndicatorStyle::Claude, AgentState::Working, _) => "✳",
+        (StatusIndicatorStyle::Claude, AgentState::Idle, false) => "✓",
+        (StatusIndicatorStyle::Claude, AgentState::Idle, true) => "✢",
+        (StatusIndicatorStyle::Claude, AgentState::Unknown, _) => "·",
     }
 }
 
@@ -301,6 +307,7 @@ mod tests {
         for (indicator_style, expected_symbols) in [
             (StatusIndicatorStyle::Dots, ["●", "●", "●", "○", "·"]),
             (StatusIndicatorStyle::Symbols, ["×", "◐", "✓", "○", "·"]),
+            (StatusIndicatorStyle::Claude, ["✻", "✳", "✓", "✢", "·"]),
         ] {
             for ((state, seen, color), expected_symbol) in [
                 (AgentState::Blocked, true, palette.red),

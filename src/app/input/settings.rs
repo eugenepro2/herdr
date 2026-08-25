@@ -62,14 +62,15 @@ fn status_indicator_index(style: StatusIndicatorStyle) -> usize {
     match style {
         StatusIndicatorStyle::Dots => 0,
         StatusIndicatorStyle::Symbols => 1,
+        StatusIndicatorStyle::Claude => 2,
     }
 }
 
 fn status_indicator_for_index(idx: usize) -> StatusIndicatorStyle {
-    if idx == 0 {
-        StatusIndicatorStyle::Dots
-    } else {
-        StatusIndicatorStyle::Symbols
+    match idx {
+        0 => StatusIndicatorStyle::Dots,
+        2 => StatusIndicatorStyle::Claude,
+        _ => StatusIndicatorStyle::Symbols,
     }
 }
 
