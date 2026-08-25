@@ -69,8 +69,27 @@ fn toast_event_text(kind: app::state::ToastKind) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(unix)]
     use super::*;
+
+    #[test]
+    fn focus_on_click_keeps_system_toasts_on_the_server() {
+        let mut toast = config::ToastConfig {
+            delivery: config::ToastDelivery::System,
+            ..Default::default()
+        };
+        assert_eq!(
+            toast_notify_kind(&toast),
+            Some(protocol::NotifyKind::SystemToast)
+        );
+
+        toast.focus_on_click = true;
+        assert_eq!(toast_notify_kind(&toast), None);
+        assert!(!should_forward_toast_to_clients(&toast));
+
+        toast.delivery = config::ToastDelivery::Terminal;
+        assert_eq!(toast_notify_kind(&toast), Some(protocol::NotifyKind::Toast));
+    }
+
     #[cfg(unix)]
     use crate::detect::Agent;
     #[cfg(unix)]

@@ -2543,23 +2543,22 @@ impl HeadlessServer {
 
                 self.app.handle_internal_event(ev);
 
-                let toast_msg =
-                    if should_forward_toast_to_clients(&self.app.state.toast_config) {
-                        if self.app.state.toast.is_some() && self.app.state.toast != toast_before {
-                            self.app
-                                .state
-                                .toast
-                                .as_ref()
-                                .map(|toast| format!("{}: {}", toast.title, toast.context))
-                        } else {
-                            Some(format!(
-                                "v{version} available: {}",
-                                crate::update::update_install_instruction(&install_command)
-                            ))
-                        }
+                let toast_msg = if should_forward_toast_to_clients(&self.app.state.toast_config) {
+                    if self.app.state.toast.is_some() && self.app.state.toast != toast_before {
+                        self.app
+                            .state
+                            .toast
+                            .as_ref()
+                            .map(|toast| format!("{}: {}", toast.title, toast.context))
                     } else {
-                        None
-                    };
+                        Some(format!(
+                            "v{version} available: {}",
+                            crate::update::update_install_instruction(&install_command)
+                        ))
+                    }
+                } else {
+                    None
+                };
 
                 if let Some(msg) = toast_msg {
                     self.send_flat_toast_to_foreground_client(
@@ -3826,7 +3825,9 @@ impl HeadlessServer {
         // Herdr delivery renders the toast in-frame and must not ask clients to
         // show a terminal or system notification.
         let toast_after = self.app.state.toast.clone();
-        let forwarded_toast_from_state = if should_forward_toast_to_clients(&self.app.state.toast_config) && toast_after.is_some()
+        let forwarded_toast_from_state = if should_forward_toast_to_clients(
+            &self.app.state.toast_config,
+        ) && toast_after.is_some()
             && toast_after != toast_before
         {
             if let Some(toast) = &toast_after {
@@ -4820,6 +4821,7 @@ impl HeadlessServer {
         }
 
         changed |= self.app.handle_tab_bar_status_tasks(now);
+        changed |= self.app.tick_working_animation(now);
 
         if geometry_dirty {
             self.app.pending_agent_resume_deadline = None;
