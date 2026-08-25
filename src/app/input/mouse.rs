@@ -672,6 +672,28 @@ impl AppState {
                         return None;
                     }
 
+                    // Fork: the row's close button, reusing the pane menu's
+                    // "Close pane" path (confirmation and all).
+                    if let Some((ws_idx, tab_idx, pane_id)) =
+                        self.agent_close_button_at(mouse.column, mouse.row)
+                    {
+                        let menu = ContextMenuState {
+                            kind: ContextMenuKind::Pane {
+                                ws_idx,
+                                tab_idx,
+                                pane_id,
+                                source_pane_id: None,
+                                has_manual_label: false,
+                                right_click_passthrough: false,
+                            },
+                            x: mouse.column,
+                            y: mouse.row,
+                            list: MenuListState::new(0),
+                        };
+                        let idx = menu.items().iter().position(|item| *item == "Close pane")?;
+                        return Some(MouseAction::ContextMenu { menu, idx });
+                    }
+
                     if let Some((ws_idx, _tab_idx, pane_id)) =
                         self.agent_detail_target_at(mouse.row)
                     {

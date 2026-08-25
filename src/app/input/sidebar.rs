@@ -489,6 +489,48 @@ impl AppState {
             && row < rect.y + rect.height
     }
 
+    /// Fork: agent whose close button sits under the cursor. Only the first row
+    /// of an entry carries the button, so a stray click cannot kill an agent.
+    pub(super) fn agent_close_button_at(
+        &self,
+        col: u16,
+        row: u16,
+    ) -> Option<(usize, usize, crate::layout::PaneId)> {
+        if self.sidebar_collapsed {
+            return None;
+        }
+
+        let detail_area = self.agent_panel_rect();
+        let metrics = crate::ui::agent_panel_scroll_metrics(self, detail_area);
+        let body = crate::ui::agent_panel_body_rect(
+            detail_area,
+            crate::ui::should_show_scrollbar(metrics),
+        );
+        let button_x = crate::ui::agent_close_button_x(self, body)?;
+        if col < button_x || col >= body.x + body.width {
+            return None;
+        }
+
+        let mut row_y = body.y;
+        let body_bottom = body.y + body.height;
+        let entries = crate::ui::agent_panel_entries(self);
+        let scroll = self.agent_panel_scroll.min(metrics.max_offset_from_bottom);
+        for (index, detail) in entries.iter().enumerate().skip(scroll) {
+            let height = crate::ui::agent_entry_height_in_body(self, detail, body.height);
+            if row_y.saturating_add(height) > body_bottom {
+                break;
+            }
+            if row == row_y {
+                return Some((detail.ws_idx, detail.tab_idx, detail.pane_id));
+            }
+            row_y = row_y
+                .saturating_add(height)
+                .saturating_add(crate::ui::agent_entry_gap(self, index, entries.len()))
+                .min(body_bottom);
+        }
+        None
+    }
+
     pub(super) fn agent_detail_target_at(
         &self,
         row: u16,
@@ -797,6 +839,46 @@ mod tests {
             } if id == pane_id
         ));
         assert!(menu.items().contains(&"Close pane"));
+    }
+
+    #[test]
+    fn agent_close_button_only_targets_the_first_row_of_an_entry() {
+        let mut app = app_for_mouse_test();
+        let ws = Workspace::test_new("one");
+        let pane_id = ws.tabs[0].root_pane;
+        app.state.workspaces = vec![ws];
+        app.state.ensure_test_terminals();
+        let terminal_id = app.state.workspaces[0].tabs[0].panes[&pane_id]
+            .attached_terminal_id
+            .clone();
+        app.state
+            .terminals
+            .get_mut(&terminal_id)
+            .unwrap()
+            .detected_agent = Some(Agent::Pi);
+        app.state.sidebar_agents.rows = vec![
+            vec![crate::config::AgentSidebarToken::Agent],
+            vec![crate::config::AgentSidebarToken::Workspace],
+        ];
+        app.state.sidebar_agent_close_button = true;
+
+        let detail_area = app.state.agent_panel_rect();
+        let metrics = crate::ui::agent_panel_scroll_metrics(&app.state, detail_area);
+        let body = crate::ui::agent_panel_body_rect(
+            detail_area,
+            crate::ui::should_show_scrollbar(metrics),
+        );
+        let button_x = crate::ui::agent_close_button_x(&app.state, body).unwrap();
+
+        assert_eq!(
+            app.state.agent_close_button_at(button_x, body.y),
+            Some((0, 0, pane_id))
+        );
+        assert_eq!(app.state.agent_close_button_at(button_x, body.y + 1), None);
+        assert_eq!(app.state.agent_close_button_at(body.x + 1, body.y), None);
+
+        app.state.sidebar_agent_close_button = false;
+        assert_eq!(app.state.agent_close_button_at(button_x, body.y), None);
     }
 
     #[test]

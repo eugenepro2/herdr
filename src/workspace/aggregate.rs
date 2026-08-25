@@ -99,6 +99,23 @@ impl Workspace {
             .unwrap_or((AgentState::Unknown, true))
     }
 
+    /// Fork: panes that want you — blocked on a prompt, or finished and unseen.
+    pub fn attention_count(&self, terminals: &HashMap<TerminalId, TerminalState>) -> usize {
+        self.tabs
+            .iter()
+            .flat_map(|tab| tab.panes.values())
+            .filter(|pane| {
+                terminals
+                    .get(&pane.attached_terminal_id)
+                    .is_some_and(|terminal| match terminal.state {
+                        AgentState::Blocked => true,
+                        AgentState::Idle => !pane.seen,
+                        _ => false,
+                    })
+            })
+            .count()
+    }
+
     pub fn pane_details(&self, terminals: &HashMap<TerminalId, TerminalState>) -> Vec<PaneDetail> {
         let multi_tab = self.tabs.len() > 1;
         self.tabs

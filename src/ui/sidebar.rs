@@ -555,6 +555,15 @@ pub(crate) fn workspace_list_scrollbar_rect(app: &AppState, area: Rect) -> Optio
     ))
 }
 
+/// Fork: column of the per-agent close button inside the agent panel body,
+/// or None when `ui.sidebar_agent_close_button` is off or the panel is too narrow.
+pub(crate) fn agent_close_button_x(app: &AppState, body: Rect) -> Option<u16> {
+    if !app.sidebar_agent_close_button || body.width < 8 || body.height == 0 {
+        return None;
+    }
+    Some(body.x + body.width - 2)
+}
+
 pub(crate) fn agent_panel_body_rect(area: Rect, has_scrollbar: bool) -> Rect {
     if area.width == 0 || area.height <= AGENT_PANEL_HEADER_ROWS {
         return Rect::default();
@@ -1541,6 +1550,8 @@ fn render_agent_detail(
     }
 
     let scroll = app.agent_panel_scroll.min(metrics.max_offset_from_bottom);
+    // Fork: gutter for the per-agent close button.
+    let close_gutter = agent_close_button_x(app, body).map_or(0, |_| 2);
     let mut row_y = body.y;
     let body_bottom = body.y + body.height;
     for (index, detail) in details.iter().enumerate().skip(scroll) {
@@ -1587,13 +1598,23 @@ fn render_agent_detail(
                 agent_style,
                 p,
                 body.width
-                    .saturating_sub(if row_index == 0 { 1 } else { 3 }) as usize,
+                    .saturating_sub(if row_index == 0 { 1 } else { 3 })
+                    .saturating_sub(close_gutter) as usize,
             ));
             frame.render_widget(
                 Paragraph::new(Line::from(spans)).style(row_style),
                 Rect::new(body.x, row_y + row_index as u16, body.width, 1),
             );
         }
+        // Fork: close button, drawn last so it wins over truncated row text.
+        if let Some(x) = agent_close_button_x(app, body) {
+            frame.render_widget(
+                Paragraph::new(Span::styled("\u{2715}", Style::default().fg(p.overlay0)))
+                    .style(row_style),
+                Rect::new(x, row_y, 1, 1),
+            );
+        }
+
         row_y = row_y
             .saturating_add(height)
             .saturating_add(agent_entry_gap(app, index, details.len()))
@@ -1751,6 +1772,34 @@ mod tests {
         assert!(agent_style.add_modifier.contains(Modifier::DIM));
         assert!(!agent_style.add_modifier.contains(Modifier::BOLD));
         assert_eq!(agent_style.bg, Some(app.palette.active_row_bg));
+    }
+
+    #[test]
+    fn agent_close_button_renders_at_the_right_edge_of_the_first_row() {
+        let mut app = crate::app::state::AppState::test_new();
+        let workspace = Workspace::test_new("one");
+        let pane_id = workspace.tabs[0].root_pane;
+        app.workspaces = vec![workspace];
+        app.ensure_test_terminals();
+        app.active = Some(0);
+        let terminal_id = app.workspaces[0].tabs[0].panes[&pane_id]
+            .attached_terminal_id
+            .clone();
+        app.terminals.get_mut(&terminal_id).unwrap().detected_agent = Some(Agent::Pi);
+        app.sidebar_agent_close_button = true;
+
+        let area = Rect::new(0, 0, 26, 20);
+        let mut terminal = Terminal::new(TestBackend::new(26, 20)).unwrap();
+        terminal
+            .draw(|frame| render_sidebar(&app, &TerminalRuntimeRegistry::new(), frame, area))
+            .unwrap();
+        let buffer = terminal.backend().buffer();
+        let (_, agent_area) = expanded_sidebar_sections(area, app.sidebar_split());
+        let body = agent_panel_body_rect(agent_area, false);
+        let button_x = agent_close_button_x(&app, body).unwrap();
+
+        assert_eq!(buffer[(button_x, body.y)].symbol(), "\u{2715}");
+        assert_ne!(buffer[(button_x, body.y + 1)].symbol(), "\u{2715}");
     }
 
     #[test]

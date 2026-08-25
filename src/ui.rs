@@ -85,7 +85,8 @@ pub(crate) use self::{
         SETTINGS_POPUP_WIDTH,
     },
     sidebar::{
-        agent_entry_gap, agent_entry_height_in_body, agent_panel_body_rect, agent_panel_entries,
+        agent_close_button_x, agent_entry_gap, agent_entry_height_in_body, agent_panel_body_rect,
+        agent_panel_entries,
         agent_panel_new_agent_rect, agent_panel_scroll_for_target, agent_panel_scroll_metrics,
         agent_panel_scrollbar_rect, agent_panel_toggle_rect, all_agent_panel_entries,
         collapsed_sidebar_sections, collapsed_sidebar_toggle_rect, compute_workspace_card_areas,
@@ -992,6 +993,45 @@ mod tests {
             .all(|r| r.width > 0 && r.y == 0));
         assert_eq!(app.view.sidebar_rect.y, 1);
         assert_eq!(app.view.terminal_area.height, 18);
+    }
+
+    #[test]
+    fn workspace_bar_agent_counts_show_waiting_and_finished_agents() {
+        let mut app = crate::app::state::AppState::test_new();
+        app.workspaces = vec![Workspace::test_new("one")];
+        app.ensure_test_terminals();
+        app.active = Some(0);
+        app.selected = 0;
+        app.mode = Mode::Terminal;
+        app.workspace_bar = true;
+        app.workspace_bar_agent_counts = true;
+        let pane_id = app.workspaces[0].tabs[0].root_pane;
+        let terminal_id = app.workspaces[0].tabs[0].panes[&pane_id]
+            .attached_terminal_id
+            .clone();
+        app.terminals.get_mut(&terminal_id).unwrap().state =
+            crate::detect::AgentState::Blocked;
+
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+        let mut terminal = Terminal::new(TestBackend::new(80, 20)).unwrap();
+        terminal.draw(|frame| render(&app, frame)).unwrap();
+        let bar = buffer_row_text(
+            terminal.backend().buffer(),
+            app.view.workspace_bar_rect,
+            app.view.workspace_bar_rect.y,
+        );
+        assert!(bar.contains("one (1)"), "{bar}");
+
+        app.workspace_bar_agent_counts = false;
+        compute_view(&mut app, Rect::new(0, 0, 80, 20));
+        let mut terminal = Terminal::new(TestBackend::new(80, 20)).unwrap();
+        terminal.draw(|frame| render(&app, frame)).unwrap();
+        let bar = buffer_row_text(
+            terminal.backend().buffer(),
+            app.view.workspace_bar_rect,
+            app.view.workspace_bar_rect.y,
+        );
+        assert!(!bar.contains("(1)"), "{bar}");
     }
 
     #[test]

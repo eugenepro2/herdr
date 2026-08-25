@@ -15,10 +15,21 @@ fn cell_label(app: &AppState, ws_idx: usize) -> String {
     let Some(ws) = app.workspaces.get(ws_idx) else {
         return String::new();
     };
+    // Fork: `ui.workspace_bar_agent_counts` appends the attention count.
+    let count = if app.workspace_bar_agent_counts {
+        ws.attention_count(&app.terminals)
+    } else {
+        0
+    };
     format!(
-        "{} {}",
+        "{} {}{}",
         ws_idx + 1,
-        ws.display_name_from_terminals(&app.terminals)
+        ws.display_name_from_terminals(&app.terminals),
+        if count > 0 {
+            format!(" ({count})")
+        } else {
+            String::new()
+        }
     )
 }
 

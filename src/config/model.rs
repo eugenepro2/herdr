@@ -947,6 +947,12 @@ pub struct UiConfig {
     /// Footer under the sidebar with the active space's branch and ahead/behind
     /// counts, above any "sidebar" command buttons. Default: false.
     pub sidebar_git_footer: bool,
+    /// Fork: draw a close button at the right edge of every sidebar agent row so
+    /// an agent can be closed without the right-click menu. Default: false.
+    pub sidebar_agent_close_button: bool,
+    /// Fork: append "(N)" to a workspace bar cell with the number of agents in
+    /// that space waiting on you or finished unseen. Default: false.
+    pub workspace_bar_agent_counts: bool,
     /// Command for the sidebar agent panel "+" button; runs in a new tab.
     /// Empty (default) hides the button.
     pub new_agent_command: String,
@@ -1183,6 +1189,8 @@ impl Default for UiConfig {
             sidebar_agents_scope: SidebarAgentsScopeConfig::All,
             workspace_bar: false,
             sidebar_git_footer: false,
+            sidebar_agent_close_button: false,
+            workspace_bar_agent_counts: false,
             new_agent_command: String::new(),
             new_agent_menu: Vec::new(),
             sidebar: SidebarConfig::default(),
