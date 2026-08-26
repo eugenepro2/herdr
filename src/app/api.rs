@@ -660,6 +660,36 @@ impl App {
         }
     }
 
+    /// Desktop-notification text. With `pane_titles`, lead with the pane's
+    /// terminal title — the agent's own summary of the chat — so the toast says
+    /// which chat wants attention instead of just naming the agent.
+    fn desktop_notification_text(
+        &self,
+        ws_idx: usize,
+        pane_id: crate::layout::PaneId,
+        title: &str,
+        context: &str,
+    ) -> (String, String) {
+        let pane_title = self
+            .state
+            .toast_config
+            .pane_titles
+            .then(|| {
+                let terminal_id = self.state.workspaces.get(ws_idx)?.terminal_id(pane_id)?;
+                self.state
+                    .terminals
+                    .get(terminal_id)?
+                    .terminal_title_stripped()
+            })
+            .flatten()
+            .filter(|pane_title| !pane_title.trim().is_empty());
+
+        match pane_title {
+            Some(pane_title) => (pane_title, format!("{title} · {context}")),
+            None => (title.to_owned(), context.to_owned()),
+        }
+    }
+
     /// Shell command that focuses the notifying pane; run by the desktop
     /// notification on click (macOS + terminal-notifier).
     fn notification_focus_action(
@@ -752,16 +782,19 @@ impl App {
             let workspace_label =
                 ws.display_name_from(&self.state.terminals, &self.terminal_runtimes);
             let action = self.notification_focus_action(update.ws_idx, update.pane_id);
-            let _ = self.notify_terminal_or_system(
-                &format!("{} {}", agent_label, event_text),
-                Some(&crate::app::actions::notification_context(
-                    ws,
-                    &workspace_label,
-                    update.ws_idx,
-                    update.pane_id,
-                )),
-                action.as_deref(),
+            let context = crate::app::actions::notification_context(
+                ws,
+                &workspace_label,
+                update.ws_idx,
+                update.pane_id,
             );
+            let (title, body) = self.desktop_notification_text(
+                update.ws_idx,
+                update.pane_id,
+                &format!("{} {}", agent_label, event_text),
+                &context,
+            );
+            let _ = self.notify_terminal_or_system(&title, Some(&body), action.as_deref());
         }
     }
 
@@ -798,17 +831,23 @@ impl App {
             let Some(toast) = &delivery.client_notification else {
                 continue;
             };
-            let action = self
+            let ws_idx = self
                 .state
                 .workspaces
                 .iter()
-                .position(|ws| ws.id == delivery.workspace_id)
-                .and_then(|ws_idx| self.notification_focus_action(ws_idx, delivery.pane_id));
-            let _ = self.notify_terminal_or_system(
-                &toast.title,
-                Some(&toast.context),
-                action.as_deref(),
-            );
+                .position(|ws| ws.id == delivery.workspace_id);
+            let action =
+                ws_idx.and_then(|ws_idx| self.notification_focus_action(ws_idx, delivery.pane_id));
+            let (title, body) = match ws_idx {
+                Some(ws_idx) => self.desktop_notification_text(
+                    ws_idx,
+                    delivery.pane_id,
+                    &toast.title,
+                    &toast.context,
+                ),
+                None => (toast.title.clone(), toast.context.clone()),
+            };
+            let _ = self.notify_terminal_or_system(&title, Some(&body), action.as_deref());
         }
     }
 
@@ -2276,6 +2315,60 @@ mod tests {
         assert_eq!(
             app.runtime_exit_action(pane_id),
             RuntimeExitAction::ClosePane
+        );
+    }
+
+    #[test]
+    fn pane_titles_lead_the_desktop_notification_with_the_chat_title() {
+        let (_api_tx, api_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut app = App::new(
+            &crate::config::Config::default(),
+            true,
+            None,
+            api_rx,
+            crate::api::EventHub::default(),
+        );
+        let workspace = crate::workspace::Workspace::test_new("solo");
+        let pane_id = workspace.tabs[0].root_pane;
+        app.state.workspaces = vec![workspace];
+        app.state.ensure_test_terminals();
+        let terminal_id = app.state.workspaces[0].terminal_id(pane_id).cloned().unwrap();
+        app.state
+            .terminals
+            .get_mut(&terminal_id)
+            .unwrap()
+            .set_terminal_title(Some("✳ Открытие чата из уведомления".into()));
+
+        assert_eq!(
+            app.desktop_notification_text(0, pane_id, "claude needs attention", "solo · 4"),
+            (
+                "claude needs attention".to_string(),
+                "solo · 4".to_string()
+            ),
+            "off by default"
+        );
+
+        app.state.toast_config.pane_titles = true;
+        assert_eq!(
+            app.desktop_notification_text(0, pane_id, "claude needs attention", "solo · 4"),
+            (
+                "Открытие чата из уведомления".to_string(),
+                "claude needs attention · solo · 4".to_string()
+            )
+        );
+
+        // An untitled pane keeps the agent-name headline.
+        app.state
+            .terminals
+            .get_mut(&terminal_id)
+            .unwrap()
+            .set_terminal_title(None);
+        assert_eq!(
+            app.desktop_notification_text(0, pane_id, "claude needs attention", "solo · 4"),
+            (
+                "claude needs attention".to_string(),
+                "solo · 4".to_string()
+            )
         );
     }
 

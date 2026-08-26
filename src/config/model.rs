@@ -231,6 +231,9 @@ pub struct ToastConfig {
     /// macOS: show system toasts from the server process so a click can focus
     /// the notifying workspace/tab/pane instead of just raising the terminal.
     pub focus_on_click: bool,
+    /// Lead desktop notifications with the pane's terminal title (the agent's
+    /// own summary of the chat) instead of the bare agent name.
+    pub pane_titles: bool,
     pub herdr: HerdrToastConfig,
     pub clipboard: ClipboardToastConfig,
 }
@@ -1219,6 +1222,7 @@ impl Default for ToastConfig {
             delivery: ToastDelivery::Off,
             delay_seconds: 1,
             focus_on_click: false,
+            pane_titles: false,
             herdr: HerdrToastConfig::default(),
             clipboard: ClipboardToastConfig::default(),
         }
@@ -1254,6 +1258,7 @@ impl<'de> Deserialize<'de> for ToastConfig {
             enabled: Option<bool>,
             delay_seconds: Option<u64>,
             focus_on_click: Option<bool>,
+            pane_titles: Option<bool>,
             herdr: HerdrToastConfig,
             clipboard: ClipboardToastConfig,
         }
@@ -1275,6 +1280,7 @@ impl<'de> Deserialize<'de> for ToastConfig {
             delivery,
             delay_seconds,
             focus_on_click: raw.focus_on_click.unwrap_or(default.focus_on_click),
+            pane_titles: raw.pane_titles.unwrap_or(default.pane_titles),
             herdr: raw.herdr,
             clipboard: raw.clipboard,
         })
