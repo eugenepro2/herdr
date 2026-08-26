@@ -670,23 +670,36 @@ impl App {
         title: &str,
         context: &str,
     ) -> (String, String) {
-        let pane_title = self
-            .state
-            .toast_config
-            .pane_titles
-            .then(|| {
-                let terminal_id = self.state.workspaces.get(ws_idx)?.terminal_id(pane_id)?;
-                self.state
-                    .terminals
-                    .get(terminal_id)?
-                    .terminal_title_stripped()
-            })
-            .flatten()
-            .filter(|pane_title| !pane_title.trim().is_empty());
+        /// Pane metadata token an agent sets to say what it is waiting on:
+        /// `herdr pane report-metadata <pane> --source ... --token summary=...`.
+        const NOTIFICATION_SUMMARY_TOKEN: &str = "summary";
 
-        match pane_title {
-            Some(pane_title) => (pane_title, format!("{title} · {context}")),
-            None => (title.to_owned(), context.to_owned()),
+        if !self.state.toast_config.pane_titles {
+            return (title.to_owned(), context.to_owned());
+        }
+
+        let terminal = self
+            .state
+            .workspaces
+            .get(ws_idx)
+            .and_then(|ws| ws.terminal_id(pane_id))
+            .and_then(|terminal_id| self.state.terminals.get(terminal_id));
+        let pane_title = terminal
+            .and_then(|terminal| terminal.terminal_title_stripped())
+            .filter(|pane_title| !pane_title.trim().is_empty());
+        // Agents report what they are actually asking through
+        // `pane report-metadata --token summary=...`; it beats any title we can
+        // scrape, so it becomes the headline when it is there.
+        let summary = terminal
+            .and_then(|terminal| terminal.metadata_tokens.values().remove(NOTIFICATION_SUMMARY_TOKEN))
+            .map(|summary| summary.trim().to_owned())
+            .filter(|summary| !summary.is_empty());
+
+        match (summary, pane_title) {
+            (Some(summary), Some(pane_title)) => (summary, format!("{pane_title} · {title}")),
+            (Some(summary), None) => (summary, format!("{title} · {context}")),
+            (None, Some(pane_title)) => (pane_title, format!("{title} · {context}")),
+            (None, None) => (title.to_owned(), context.to_owned()),
         }
     }
 
@@ -2357,12 +2370,44 @@ mod tests {
             )
         );
 
-        // An untitled pane keeps the agent-name headline.
+        // A reported summary says what the agent is actually asking, so it leads.
+        app.state
+            .terminals
+            .get_mut(&terminal_id)
+            .unwrap()
+            .metadata_tokens
+            .patch(
+                std::collections::HashMap::from([(
+                    "summary".to_string(),
+                    Some("Разрешить Bash: cargo build?".to_string()),
+                )]),
+                None,
+                std::time::Instant::now(),
+            );
+        assert_eq!(
+            app.desktop_notification_text(0, pane_id, "claude needs attention", "solo · 4"),
+            (
+                "Разрешить Bash: cargo build?".to_string(),
+                "Открытие чата из уведомления · claude needs attention".to_string()
+            )
+        );
+
+        // Without either, the toast keeps the agent-name headline.
         app.state
             .terminals
             .get_mut(&terminal_id)
             .unwrap()
             .set_terminal_title(None);
+        app.state
+            .terminals
+            .get_mut(&terminal_id)
+            .unwrap()
+            .metadata_tokens
+            .patch(
+                std::collections::HashMap::from([("summary".to_string(), None)]),
+                None,
+                std::time::Instant::now(),
+            );
         assert_eq!(
             app.desktop_notification_text(0, pane_id, "claude needs attention", "solo · 4"),
             (
