@@ -334,6 +334,15 @@ pub(super) fn tab_bar_bg(app: &AppState) -> Color {
     }
 }
 
+/// Fork: column of the close button inside a tab chip, or None when
+/// `ui.tab_close_button` is off, the mouse is not captured, or the chip is too
+/// narrow to spare its right padding. The chip's label is centered with at
+/// least two padding columns on each side, so the button never covers text.
+pub(crate) fn tab_close_button_x(app: &AppState, rect: Rect) -> Option<u16> {
+    (app.tab_close_button && app.mouse_capture && rect.width >= MIN_TAB_WIDTH)
+        .then(|| rect.x + rect.width - 2)
+}
+
 pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
     if area.width == 0 || area.height == 0 {
         return;
@@ -435,6 +444,11 @@ pub(super) fn render_tab_bar(app: &AppState, frame: &mut Frame, area: Rect) {
             right = padding - left
         );
         frame.render_widget(Paragraph::new(text).style(style), rect);
+        if let Some(x) = tab_close_button_x(app, rect) {
+            frame.buffer_mut()[(x, rect.y)]
+                .set_symbol("✕")
+                .set_style(style);
+        }
     }
 
     if let Some(crate::app::state::DragState {

@@ -953,6 +953,9 @@ pub struct UiConfig {
     /// Fork: draw a close button at the right edge of every sidebar agent row so
     /// an agent can be closed without the right-click menu. Default: false.
     pub sidebar_agent_close_button: bool,
+    /// Fork: draw a close button in the right padding of every tab chip so a tab
+    /// can be closed with one click instead of the right-click menu. Default: false.
+    pub tab_close_button: bool,
     /// Fork: append "(N)" to a workspace bar cell with the number of agents in
     /// that space waiting on you or finished unseen. Default: false.
     pub workspace_bar_agent_counts: bool,
@@ -1193,6 +1196,7 @@ impl Default for UiConfig {
             workspace_bar: false,
             sidebar_git_footer: false,
             sidebar_agent_close_button: false,
+            tab_close_button: false,
             workspace_bar_agent_counts: false,
             new_agent_command: String::new(),
             new_agent_menu: Vec::new(),

@@ -538,6 +538,21 @@ impl AppState {
                     self.scroll_tabs_right();
                     return None;
                 }
+                // Fork: the chip's close button, reusing the tab menu's
+                // "Close" path (confirmation and all).
+                if let (Some(ws_idx), Some(tab_idx)) = (
+                    self.active,
+                    self.tab_close_button_at(mouse.column, mouse.row),
+                ) {
+                    let menu = ContextMenuState {
+                        kind: ContextMenuKind::Tab { ws_idx, tab_idx },
+                        x: mouse.column,
+                        y: mouse.row,
+                        list: MenuListState::new(0),
+                    };
+                    let idx = menu.items().iter().position(|item| *item == "Close")?;
+                    return Some(MouseAction::ContextMenu { menu, idx });
+                }
                 if let (Some(ws_idx), Some(tab_idx)) =
                     (self.active, self.tab_at(mouse.column, mouse.row))
                 {
@@ -1502,6 +1517,14 @@ impl AppState {
             })
     }
 
+    /// Fork: tab whose close button sits under the cursor. Only the single
+    /// padding column carrying the "✕" counts, so a stray click still focuses.
+    pub(super) fn tab_close_button_at(&self, col: u16, row: u16) -> Option<usize> {
+        let idx = self.tab_at(col, row)?;
+        let rect = self.view.tab_hit_areas.get(idx).copied()?;
+        (col == crate::ui::tab_close_button_x(self, rect)?).then_some(idx)
+    }
+
     fn mode_bar_covers_tab_row(&self, col: u16, row: u16) -> bool {
         self.tab_bar_position == crate::config::TabBarPositionConfig::Bottom
             && matches!(
@@ -2240,6 +2263,31 @@ mod tests {
         ));
 
         assert_eq!(app.state.workspaces[0].active_tab, 0);
+    }
+
+    #[test]
+    fn tab_close_button_only_targets_its_own_padding_column() {
+        let mut app = app_for_mouse_test();
+        let mut ws = Workspace::test_new("test");
+        ws.test_add_tab(None);
+        app.state.workspaces = vec![ws];
+        app.state.active = Some(0);
+        app.state.selected = 0;
+        app.state.mouse_capture = true;
+        app.state.tab_close_button = true;
+        crate::ui::compute_view(&mut app.state, Rect::new(0, 0, 106, 20));
+
+        let tab = app.state.view.tab_hit_areas[1];
+        let button_x = crate::ui::tab_close_button_x(&app.state, tab).unwrap();
+        assert_eq!(
+            app.state.tab_close_button_at(button_x, tab.y),
+            Some(1),
+            "the padding column closes its own tab"
+        );
+        assert_eq!(app.state.tab_close_button_at(tab.x + 1, tab.y), None);
+
+        app.state.tab_close_button = false;
+        assert_eq!(app.state.tab_close_button_at(button_x, tab.y), None);
     }
 
     #[test]
