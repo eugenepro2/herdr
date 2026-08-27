@@ -12,6 +12,7 @@ mod menus;
 mod mobile;
 mod navigator;
 mod onboarding;
+mod pane_links;
 mod panes;
 mod release_notes;
 mod scrollbar;

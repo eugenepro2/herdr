@@ -956,6 +956,9 @@ pub struct UiConfig {
     /// Fork: draw a close button in the right padding of every tab chip so a tab
     /// can be closed with one click instead of the right-click menu. Default: false.
     pub tab_close_button: bool,
+    /// Fork: underline what a ctrl+click would follow in pane output — http(s)
+    /// links, and file paths when `pane_file_links` is on too. Default: false.
+    pub pane_link_highlight: bool,
     /// Fork: ctrl+click a plain-text file path in pane output to follow it as a
     /// `file://` link (a plugin link handler decides what opens). Default: false.
     pub pane_file_links: bool,
@@ -1201,6 +1204,7 @@ impl Default for UiConfig {
             sidebar_agent_close_button: false,
             tab_close_button: false,
             pane_file_links: false,
+            pane_link_highlight: false,
             workspace_bar_agent_counts: false,
             new_agent_command: String::new(),
             new_agent_menu: Vec::new(),
