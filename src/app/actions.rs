@@ -2263,7 +2263,18 @@ impl AppState {
             .find('\n')
             .map_or(visible_text.len(), |idx| logical_cell.byte_index + idx);
         let line = visible_text.get(line_start..line_end)?;
-        url_at_column(line, logical_cell.logical_col).map(str::to_owned)
+        if let Some(url) = url_at_column(line, logical_cell.logical_col) {
+            return Some(url.to_owned());
+        }
+        // Форк: путь файла, напечатанный обычным текстом, тоже ссылка.
+        if self.pane_file_links {
+            return crate::app::file_links::file_link_at_column(
+                line,
+                logical_cell.logical_col,
+                rt.foreground_cwd().as_deref(),
+            );
+        }
+        None
     }
 
     pub fn copy_selection(&mut self, terminal_runtimes: &crate::terminal::TerminalRuntimeRegistry) {

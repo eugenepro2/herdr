@@ -15,6 +15,7 @@ pub(crate) use api_helpers::limit_snapshot_lines;
 mod config_io;
 mod creation;
 pub(crate) mod dir_picker;
+mod file_links;
 mod git_refresh;
 mod ids;
 mod input;
@@ -671,6 +672,7 @@ impl App {
             sidebar_git_footer: config.ui.sidebar_git_footer,
             sidebar_agent_close_button: config.ui.sidebar_agent_close_button,
             tab_close_button: config.ui.tab_close_button,
+            pane_file_links: config.ui.pane_file_links,
             workspace_bar_agent_counts: config.ui.workspace_bar_agent_counts,
             new_agent_command: config.ui.new_agent_command.clone(),
             new_agent_menu: config.ui.new_agent_menu.clone(),
@@ -1558,6 +1560,7 @@ impl App {
                 self.state.sidebar_git_footer = config.ui.sidebar_git_footer;
                 self.state.sidebar_agent_close_button = config.ui.sidebar_agent_close_button;
                 self.state.tab_close_button = config.ui.tab_close_button;
+                self.state.pane_file_links = config.ui.pane_file_links;
                 self.state.workspace_bar_agent_counts = config.ui.workspace_bar_agent_counts;
                 self.state.new_agent_command = config.ui.new_agent_command.clone();
                 self.state.new_agent_menu = config.ui.new_agent_menu.clone();
