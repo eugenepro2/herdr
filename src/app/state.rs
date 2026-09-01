@@ -1553,6 +1553,8 @@ pub struct AppState {
     pub tab_close_button: bool,
     pub pane_file_links: bool,
     pub pane_link_highlight: bool,
+    /// Форк: указатель мыши стоит на том, что откроет ctrl+клик.
+    pub pointer_over_link: bool,
     pub workspace_bar_agent_counts: bool,
     pub new_agent_command: String,
     pub new_agent_menu: Vec<crate::config::NewAgentMenuEntry>,
@@ -1978,6 +1980,7 @@ impl AppState {
             tab_close_button: false,
             pane_file_links: false,
             pane_link_highlight: false,
+            pointer_over_link: false,
             workspace_bar_agent_counts: false,
             new_agent_command: String::new(),
             new_agent_menu: Vec::new(),

@@ -65,6 +65,8 @@ pub(crate) struct ClientConnection {
     pub(crate) render_pending: bool,
     /// Last host mouse capture mode sent to this client.
     pub(crate) host_mouse_capture_active: Option<bool>,
+    /// Форк: какая форма указателя мыши уже стоит у этого клиента (OSC 22).
+    pub(crate) host_mouse_pointer_active: Option<bool>,
     /// Last SGR pixel provenance mode sent to this client.
     pub(crate) host_sgr_pixels_active: Option<bool>,
     /// Last Kitty report-all mode sent to this client's host terminal.
@@ -133,6 +135,7 @@ impl ClientConnection {
             graphics_surface_reset_pending: false,
             render_pending: false,
             host_mouse_capture_active: None,
+            host_mouse_pointer_active: None,
             host_sgr_pixels_active: None,
             host_keyboard_report_all_active: None,
             staged_clipboard_files: Vec::new(),

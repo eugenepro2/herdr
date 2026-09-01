@@ -1102,6 +1102,27 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn pointer_over_link_follows_the_mouse_when_highlighting_is_on() {
+        let line = "see https://example.com/pr/307 here";
+        let (mut app, info) = app_with_screen_bytes(line.as_bytes());
+        app.state.pane_link_highlight = true;
+        let url_col = info.inner_rect.x + line.find("example").expect("url host") as u16;
+        let plain_col = info.inner_rect.x + 1;
+        let row = info.inner_rect.y;
+
+        app.handle_mouse(mouse(MouseEventKind::Moved, url_col, row));
+        assert!(app.state.pointer_over_link);
+
+        app.handle_mouse(mouse(MouseEventKind::Moved, plain_col, row));
+        assert!(!app.state.pointer_over_link);
+
+        // Флаг выключен — курсор всегда обычный.
+        app.state.pane_link_highlight = false;
+        app.handle_mouse(mouse(MouseEventKind::Moved, url_col, row));
+        assert!(!app.state.pointer_over_link);
+    }
+
+    #[tokio::test]
     async fn pane_cell_url_resolver_finds_soft_wrapped_url() {
         let (_app, info) = app_with_screen_bytes(b"");
         let prefix = "https://example.com/";

@@ -703,6 +703,7 @@ impl HeadlessServer {
             self.drain_client_config_reload_request();
             self.sync_immediate_pty_sources();
             self.stream_host_mouse_capture_mode();
+            self.stream_host_mouse_shape();
             self.stream_host_keyboard_enhancement_flags();
 
             // 7. Render virtually and stream frames. Hidden-only PTY work keeps a
@@ -3978,6 +3979,37 @@ impl HeadlessServer {
             .and_then(|ws_idx| self.app.state.workspaces.get(ws_idx))
             .and_then(crate::workspace::Workspace::focused_pane_id)
             .is_some_and(|pane_id| self.app.pane_graphics.active_for_pane(pane_id))
+    }
+
+    /// Форк: держит форму указателя мыши у клиентов в согласии с тем, стоит ли
+    /// он на кликабельном. Шлётся только на смену — как и режим захвата мыши.
+    fn stream_host_mouse_shape(&mut self) {
+        let pointer = self.app.state.pointer_over_link;
+        let mut broken_clients: Vec<u64> = Vec::new();
+        for (&client_id, client) in &mut self.clients {
+            if !client.is_full_app_client() || client.host_mouse_pointer_active == Some(pointer) {
+                continue;
+            }
+            let Some(writer) = &client.writer else {
+                continue;
+            };
+            let serialized = match Self::frame_server_message(&ServerMessage::MouseShape { pointer })
+            {
+                Ok(framed) => framed,
+                Err(err) => {
+                    warn!(err = %err, "failed to serialize mouse shape for client");
+                    continue;
+                }
+            };
+            if writer.control.send(serialized).is_err() {
+                broken_clients.push(client_id);
+                continue;
+            }
+            client.host_mouse_pointer_active = Some(pointer);
+        }
+        for client_id in broken_clients {
+            self.remove_client_and_resize_if_needed(client_id);
+        }
     }
 
     fn stream_host_mouse_capture_mode(&mut self) {

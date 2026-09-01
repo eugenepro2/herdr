@@ -596,6 +596,8 @@ fn restore_terminal_state(
     #[cfg(windows)] restore_windows_input_mode: Option<u32>,
 ) -> io::Result<()> {
     let _ = clear_received_kitty_graphics(&mut io::stdout());
+    // Форк: не оставлять хосту руку от подсветки ссылок.
+    let _ = crate::terminal_effects::write_mouse_shape(&mut io::stdout(), false);
 
     // Reset modifyOtherKeys if we enabled it.
     if reset_modify_other_keys {
@@ -1851,6 +1853,9 @@ async fn run_client_loop(
                         &mut io::stdout(),
                         title.as_deref(),
                     );
+                }
+                ServerMessage::MouseShape { pointer } => {
+                    let _ = crate::terminal_effects::write_mouse_shape(&mut io::stdout(), pointer);
                 }
                 ServerMessage::ReloadSoundConfig => {
                     reload_local_client_config(

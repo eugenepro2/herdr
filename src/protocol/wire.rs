@@ -721,6 +721,13 @@ pub enum ServerMessage {
         sgr_pixels: bool,
     },
 
+    /// Fork: shape the host terminal's mouse pointer (OSC 22) — a hand while the
+    /// pointer sits on something a ctrl+click would follow.
+    MouseShape {
+        /// True for the pointing hand, false for the terminal's own default.
+        pointer: bool,
+    },
+
     /// Whether the focused terminal requests Kitty report-all keyboard input.
     KittyKeyboardReportAll {
         /// True only while the focused pane requests `REPORT_ALL_KEYS_AS_ESCAPE_CODES`.

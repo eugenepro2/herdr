@@ -287,6 +287,17 @@ impl App {
         false
     }
 
+    /// Форк: в монолитном режиме клиента нет — форму указателя мыши хосту
+    /// пишет сам App, и только на смену.
+    pub(crate) fn sync_host_mouse_shape(&mut self) {
+        let pointer = self.state.pointer_over_link;
+        if self.host_mouse_pointer_active == Some(pointer) {
+            return;
+        }
+        self.host_mouse_pointer_active = Some(pointer);
+        let _ = crate::terminal_effects::write_mouse_shape(&mut std::io::stdout(), pointer);
+    }
+
     pub(crate) fn handle_scheduled_tasks(&mut self, now: Instant, geometry_dirty: bool) -> bool {
         let mut changed = false;
         let mut resized = false;

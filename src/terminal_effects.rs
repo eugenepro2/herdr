@@ -22,9 +22,29 @@ pub(crate) fn write_window_title<W: Write>(writer: &mut W, title: Option<&str>) 
     writer.flush()
 }
 
+/// Fork: set the host terminal's mouse pointer shape (OSC 22, as Ghostty and
+/// kitty read it). An empty shape restores the terminal's own default.
+pub(crate) fn write_mouse_shape<W: Write>(writer: &mut W, pointer: bool) -> io::Result<()> {
+    let shape = if pointer { "pointer" } else { "default" };
+    write!(writer, "\x1b]22;{shape}\x1b\\")?;
+    writer.flush()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mouse_shape_switches_between_the_hand_and_the_default() {
+        let mut output = Vec::new();
+        write_mouse_shape(&mut output, true).unwrap();
+        write_mouse_shape(&mut output, false).unwrap();
+
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "\x1b]22;pointer\x1b\\\x1b]22;default\x1b\\"
+        );
+    }
 
     #[test]
     fn writes_exact_terminal_bell_count() {

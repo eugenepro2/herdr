@@ -131,6 +131,10 @@ pub struct App {
     pub(crate) next_api_worktree_operation_id: u64,
     pub(crate) last_sidebar_divider_click: Option<Instant>,
     pub(crate) last_pane_click: Option<PaneClickState>,
+    /// Форк: ячейка, для которой уже посчитано `pointer_over_link`.
+    pub(crate) last_pointer_cell: Option<(crate::layout::PaneId, u16, u16)>,
+    /// Форк: какая форма указателя уже написана хосту в монолитном режиме.
+    pub(crate) host_mouse_pointer_active: Option<bool>,
     pub(crate) pending_url_click_sources: HashSet<InputSourceId>,
     pub(crate) next_resize_poll: Instant,
     pub(crate) next_auto_update_check: Option<Instant>,
@@ -674,6 +678,7 @@ impl App {
             tab_close_button: config.ui.tab_close_button,
             pane_file_links: config.ui.pane_file_links,
             pane_link_highlight: config.ui.pane_link_highlight,
+            pointer_over_link: false,
             workspace_bar_agent_counts: config.ui.workspace_bar_agent_counts,
             new_agent_command: config.ui.new_agent_command.clone(),
             new_agent_menu: config.ui.new_agent_menu.clone(),
@@ -805,6 +810,8 @@ impl App {
             next_api_worktree_operation_id: 1,
             last_sidebar_divider_click: None,
             last_pane_click: None,
+            last_pointer_cell: None,
+            host_mouse_pointer_active: None,
             pending_url_click_sources: HashSet::new(),
             next_resize_poll: Instant::now() + RESIZE_POLL_INTERVAL,
             next_auto_update_check: version_check_enabled
@@ -1005,6 +1012,7 @@ impl App {
 
             self.sync_focus_events();
             self.sync_session_save_schedule();
+            self.sync_host_mouse_shape();
 
             let now = Instant::now();
             if self.handle_scheduled_tasks(now, needs_render) {

@@ -343,6 +343,7 @@ impl App {
         source_id: super::InputSourceId,
         mouse: MouseEvent,
     ) {
+        self.track_pointer_over_link(mouse);
         match mouse.kind {
             MouseEventKind::Down(MouseButton::Left) => {
                 self.pending_url_click_sources.remove(&source_id);
@@ -586,6 +587,40 @@ impl App {
 
         // Focus through the runtime API before an application can consume its press.
         self.focus_pane_internal_via_api(ws_idx, pane_id);
+    }
+
+    /// Форк: держит `pointer_over_link` в согласии с тем, где стоит мышь, чтобы
+    /// хост-терминал показал руку над кликабельным. Считается один раз на
+    /// ячейку — движение внутри одной ячейки ничего не пересчитывает.
+    fn track_pointer_over_link(&mut self, mouse: MouseEvent) {
+        if !self.state.pane_link_highlight || self.state.mode != Mode::Terminal {
+            self.set_pointer_over_link(false, None);
+            return;
+        }
+        let Some(info) = self.state.pane_at(mouse.column, mouse.row).cloned() else {
+            self.set_pointer_over_link(false, None);
+            return;
+        };
+        let viewport_row = mouse.row.saturating_sub(info.inner_rect.y);
+        let col = mouse.column.saturating_sub(info.inner_rect.x);
+        let cell = (info.id, viewport_row, col);
+        if self.last_pointer_cell == Some(cell) {
+            return;
+        }
+        let over = self
+            .state
+            .url_at_pane_cell(&self.terminal_runtimes, info.id, viewport_row, col)
+            .is_some();
+        self.set_pointer_over_link(over, Some(cell));
+    }
+
+    fn set_pointer_over_link(
+        &mut self,
+        over: bool,
+        cell: Option<(crate::layout::PaneId, u16, u16)>,
+    ) {
+        self.last_pointer_cell = cell;
+        self.state.pointer_over_link = over;
     }
 
     fn handle_modified_url_click(
