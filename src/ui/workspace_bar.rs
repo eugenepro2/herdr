@@ -168,6 +168,28 @@ pub(super) fn render_workspace_bar(app: &AppState, frame: &mut Frame, area: Rect
         );
     }
 
+    // Fork: `ui.drag_reorder` — where the dragged space would land.
+    if let Some(crate::app::state::DragState {
+        target:
+            crate::app::state::DragTarget::WorkspaceReorder {
+                drop_target: Some(target),
+                ..
+            },
+    }) = &app.drag
+    {
+        if let Some((_, x)) = app
+            .workspace_bar_drop_slots()
+            .into_iter()
+            .find(|(slot, _)| slot == target)
+        {
+            if x >= area.x && x < area.x + area.width {
+                frame.buffer_mut()[(x, area.y)]
+                    .set_symbol("\u{2502}")
+                    .set_style(Style::default().fg(p.accent));
+            }
+        }
+    }
+
     let button_style = Style::default().fg(panel_contrast_fg(p)).bg(p.overlay1);
     for (rect, idx) in &app.view.workspace_bar_button_hit_areas {
         let Some(label) = app

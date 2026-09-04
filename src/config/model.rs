@@ -965,6 +965,9 @@ pub struct UiConfig {
     /// Fork: append "(N)" to a workspace bar cell with the number of agents in
     /// that space waiting on you or finished unseen. Default: false.
     pub workspace_bar_agent_counts: bool,
+    /// Fork: drag a workspace cell in the workspace bar, or an agent row in the
+    /// sidebar, to reorder it. Default: false.
+    pub drag_reorder: bool,
     /// Command for the sidebar agent panel "+" button; runs in a new tab.
     /// Empty (default) hides the button.
     pub new_agent_command: String,
@@ -1206,6 +1209,7 @@ impl Default for UiConfig {
             pane_file_links: false,
             pane_link_highlight: false,
             workspace_bar_agent_counts: false,
+            drag_reorder: false,
             new_agent_command: String::new(),
             new_agent_menu: Vec::new(),
             sidebar: SidebarConfig::default(),

@@ -680,6 +680,7 @@ impl App {
             pane_link_highlight: config.ui.pane_link_highlight,
             pointer_over_link: false,
             workspace_bar_agent_counts: config.ui.workspace_bar_agent_counts,
+            drag_reorder: config.ui.drag_reorder,
             new_agent_command: config.ui.new_agent_command.clone(),
             new_agent_menu: config.ui.new_agent_menu.clone(),
             agent_view_override: None,
@@ -1572,6 +1573,7 @@ impl App {
                 self.state.pane_file_links = config.ui.pane_file_links;
                 self.state.pane_link_highlight = config.ui.pane_link_highlight;
                 self.state.workspace_bar_agent_counts = config.ui.workspace_bar_agent_counts;
+                self.state.drag_reorder = config.ui.drag_reorder;
                 self.state.new_agent_command = config.ui.new_agent_command.clone();
                 self.state.new_agent_menu = config.ui.new_agent_menu.clone();
                 self.state.sidebar_agents = config.ui.sidebar.agents.clone();

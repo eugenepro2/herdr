@@ -527,6 +527,23 @@ impl AppState {
 
                 if let Some(ws_idx) = self.workspace_bar_at(mouse.column, mouse.row) {
                     self.mode = Mode::Terminal;
+                    // Fork: `ui.drag_reorder` — arm a reorder from the bar. A
+                    // plain click still focuses; only mouse-up moves anything.
+                    if self.drag_reorder
+                        && self.drag.is_none()
+                        && self.workspaces.get(ws_idx).is_some_and(|ws| {
+                            ws.worktree_space()
+                                .is_none_or(|space| !space.is_linked_worktree)
+                        })
+                    {
+                        self.drag = Some(DragState {
+                            target: DragTarget::WorkspaceReorder {
+                                source_id,
+                                source_ws_idx: ws_idx,
+                                drop_target: None,
+                            },
+                        });
+                    }
                     return Some(MouseAction::FocusWorkspace { ws_idx });
                 }
 
@@ -709,10 +726,26 @@ impl AppState {
                         return Some(MouseAction::ContextMenu { menu, idx });
                     }
 
-                    if let Some((ws_idx, _tab_idx, pane_id)) =
+                    if let Some((ws_idx, tab_idx, pane_id)) =
                         self.agent_detail_target_at(mouse.row)
                     {
                         self.mode = Mode::Terminal;
+                        // Fork: `ui.drag_reorder` — an agent row stands for its
+                        // tab, so dragging one reorders that tab.
+                        if self.drag_reorder
+                            && self.drag.is_none()
+                            && self.active == Some(ws_idx)
+                            && !self.agent_drop_slots().is_empty()
+                        {
+                            self.drag = Some(DragState {
+                                target: DragTarget::TabReorder {
+                                    source_id,
+                                    ws_idx,
+                                    source_tab_idx: tab_idx,
+                                    insert_idx: None,
+                                },
+                            });
+                        }
                         return Some(MouseAction::FocusPane { ws_idx, pane_id });
                     }
                 } else if let Some(info) = self.pane_at(mouse.column, mouse.row).cloned() {
@@ -769,8 +802,14 @@ impl AppState {
                     }
                 }
 
-                let workspace_drop_target = self.workspace_drop_target_at_row(mouse.row);
-                let tab_drop_index = self.tab_drop_index_at(mouse.column, mouse.row);
+                let workspace_drop_target = self
+                    .workspace_drop_target_at_row(mouse.row)
+                    // Fork: `ui.drag_reorder` — slots between workspace bar cells.
+                    .or_else(|| self.workspace_bar_drop_target_at(mouse.column, mouse.row));
+                let tab_drop_index = self
+                    .tab_drop_index_at(mouse.column, mouse.row)
+                    // Fork: `ui.drag_reorder` — slots in the sidebar agent panel.
+                    .or_else(|| self.agent_drop_tab_index_at(mouse.row));
                 if self.drag.is_none() {
                     if let Some(press) = self.workspace_presses.get(&source_id) {
                         let delta_col = mouse.column.abs_diff(press.start_col);

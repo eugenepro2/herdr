@@ -1621,6 +1621,33 @@ fn render_agent_detail(
             .min(body_bottom);
     }
 
+    // Fork: `ui.drag_reorder` — where the dragged agent's tab would land. Drawn
+    // over the row it would push down; the drag is short and the cue is clear.
+    if let Some(crate::app::state::DragState {
+        target:
+            crate::app::state::DragTarget::TabReorder {
+                insert_idx: Some(insert_idx),
+                ..
+            },
+    }) = &app.drag
+    {
+        if let Some((_, y)) = app
+            .agent_drop_slots()
+            .into_iter()
+            .find(|(tab_idx, _)| tab_idx == insert_idx)
+        {
+            if y < body.y + body.height {
+                frame.render_widget(
+                    Paragraph::new(Span::styled(
+                        "─".repeat(body.width as usize),
+                        Style::default().fg(p.accent),
+                    )),
+                    Rect::new(body.x, y, body.width, 1),
+                );
+            }
+        }
+    }
+
     if let Some(track) = scrollbar_rect {
         render_scrollbar(frame, metrics, track, p.surface_dim, p.overlay0, "▕");
     }

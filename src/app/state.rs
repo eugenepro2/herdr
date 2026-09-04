@@ -1556,6 +1556,8 @@ pub struct AppState {
     /// Форк: указатель мыши стоит на том, что откроет ctrl+клик.
     pub pointer_over_link: bool,
     pub workspace_bar_agent_counts: bool,
+    /// Форк: drag'n'drop перестановка спейсов в полоске и агентов в сайдбаре.
+    pub drag_reorder: bool,
     pub new_agent_command: String,
     pub new_agent_menu: Vec<crate::config::NewAgentMenuEntry>,
     /// Transient session-wide projection override for the built-in Agents view.
@@ -1982,6 +1984,7 @@ impl AppState {
             pane_link_highlight: false,
             pointer_over_link: false,
             workspace_bar_agent_counts: false,
+            drag_reorder: false,
             new_agent_command: String::new(),
             new_agent_menu: Vec::new(),
             agent_view_override: None,

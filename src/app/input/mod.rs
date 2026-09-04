@@ -39,6 +39,7 @@ fn modified_url_click_modifier_matches_terminal_mouse_reporting() {
 mod clipboard;
 mod copy_mode;
 pub(crate) mod dir_picker;
+mod drag_reorder;
 mod lease;
 mod modal;
 mod mouse;
