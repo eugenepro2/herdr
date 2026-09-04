@@ -92,6 +92,17 @@ fn resolve(token: &str, cwd: Option<&Path>) -> Option<PathBuf> {
     absolute.is_file().then_some(absolute)
 }
 
+/// Форк: alt+клик по пути файла открывает его папку.
+/// `file:///a/b/c.md` → `file:///a/b`. Не файловая ссылка или корень — None.
+pub(crate) fn parent_dir_url(url: &str) -> Option<String> {
+    let path = url.strip_prefix("file://")?;
+    let parent = Path::new(path).parent()?;
+    if parent.as_os_str().is_empty() {
+        return None;
+    }
+    Some(format!("file://{}", parent.display()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -119,5 +130,15 @@ mod tests {
     #[test]
     fn token_at_column_drops_wrapping_and_line_numbers() {
         assert_eq!(token_at_column("см. `src/ui.rs:42:8`,", 6), Some("src/ui.rs"));
+    }
+
+    #[test]
+    fn parent_dir_url_points_at_the_containing_folder() {
+        assert_eq!(
+            parent_dir_url("file:///a/b/c.md").as_deref(),
+            Some("file:///a/b")
+        );
+        assert_eq!(parent_dir_url("https://example.com/x"), None);
+        assert_eq!(parent_dir_url("file:///"), None);
     }
 }

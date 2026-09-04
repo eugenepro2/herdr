@@ -30,6 +30,12 @@ fn modified_url_click_modifier() -> KeyModifiers {
     KeyModifiers::CONTROL
 }
 
+/// Форк: alt+клик по пути файла открывает папку, в которой он лежит.
+/// За флагом `ui.pane_file_links` — без файловых ссылок открывать нечего.
+fn reveal_dir_click_modifier() -> KeyModifiers {
+    KeyModifiers::ALT
+}
+
 #[cfg(test)]
 #[test]
 fn modified_url_click_modifier_matches_terminal_mouse_reporting() {
@@ -638,9 +644,12 @@ impl App {
         mouse: MouseEvent,
         open_url: impl FnOnce(&str) -> std::io::Result<Option<std::process::Child>>,
     ) -> bool {
+        let reveal_dir = self.state.pane_file_links
+            && mouse.modifiers.contains(reveal_dir_click_modifier())
+            && !mouse.modifiers.contains(modified_url_click_modifier());
         if self.state.mode != Mode::Terminal
             || !matches!(mouse.kind, MouseEventKind::Down(MouseButton::Left))
-            || !mouse.modifiers.contains(modified_url_click_modifier())
+            || !(reveal_dir || mouse.modifiers.contains(modified_url_click_modifier()))
         {
             return false;
         }
@@ -656,6 +665,23 @@ impl App {
         else {
             return false;
         };
+
+        // Папку открывает система, не плагин: плагин показал бы превью файла.
+        if reveal_dir {
+            let Some(dir) = crate::app::file_links::parent_dir_url(&url) else {
+                return false;
+            };
+            self.last_pane_click = None;
+            self.pending_url_click_sources.insert(source_id);
+            match open_url(&dir) {
+                Ok(Some(child)) => self.detached_process_children.push(child),
+                Ok(None) => {}
+                Err(err) => {
+                    tracing::warn!(err = %err, dir = %dir, "failed to open pane file directory");
+                }
+            }
+            return true;
+        }
 
         self.last_pane_click = None;
         self.pending_url_click_sources.insert(source_id);
