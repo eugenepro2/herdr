@@ -101,15 +101,6 @@ pub enum AgentPanelSortConfig {
     Priority,
 }
 
-impl AgentPanelSortConfig {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Spaces => "spaces",
-            Self::Priority => "priority",
-        }
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
 enum LegacyAgentPanelScopeConfig {
@@ -123,9 +114,6 @@ pub enum StatusIndicatorStyle {
     #[default]
     Dots,
     Symbols,
-    /// Fork: one glyph family in the Claude Code spirit — stars of rising
-    /// density, plus a check mark for finished work.
-    Claude,
 }
 
 impl StatusIndicatorStyle {
@@ -133,25 +121,8 @@ impl StatusIndicatorStyle {
         match self {
             Self::Dots => "dots",
             Self::Symbols => "symbols",
-            Self::Claude => "claude",
         }
     }
-}
-
-/// One entry of the "+" button right-click menu: label shown, command run in a new tab.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Default)]
-#[serde(default)]
-pub struct NewAgentMenuEntry {
-    pub label: String,
-    pub command: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
-#[serde(rename_all = "lowercase")]
-pub enum SidebarAgentsScopeConfig {
-    #[default]
-    All,
-    Active,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
@@ -228,12 +199,6 @@ fn parse_right_click_passthrough_modifier(value: &str) -> Option<Option<KeyModif
 pub struct ToastConfig {
     pub delivery: ToastDelivery,
     pub delay_seconds: u64,
-    /// macOS: show system toasts from the server process so a click can focus
-    /// the notifying workspace/tab/pane instead of just raising the terminal.
-    pub focus_on_click: bool,
-    /// Lead desktop notifications with the pane's terminal title (the agent's
-    /// own summary of the chat) instead of the bare agent name.
-    pub pane_titles: bool,
     pub herdr: HerdrToastConfig,
     pub clipboard: ClipboardToastConfig,
 }
@@ -293,6 +258,8 @@ pub struct TerminalConfig {
     pub shell_mode: ShellModeConfig,
     /// CWD policy for new interactive panes, tabs, and workspaces.
     pub new_cwd: NewTerminalCwdConfig,
+    /// Render Kitty graphics in compatible outer terminals. Default: true.
+    pub kitty_graphics: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -398,7 +365,7 @@ pub struct KeysConfig {
     pub navigate_pane_up: BindingConfig,
     /// Focus the pane to the right in navigate mode. Default: "l". Right arrow is always an alias.
     pub navigate_pane_right: BindingConfig,
-    /// Detach from server/client mode, or exit --no-session mode. Default: "prefix+q".
+    /// Detach the current client from its Herdr server. Default: "prefix+q".
     pub detach: BindingConfig,
     /// Reload config.toml in the running app/server. Default: "prefix+shift+r".
     pub reload_config: BindingConfig,
@@ -617,6 +584,12 @@ pub(crate) struct KeysConfigOverlay {
     indexed: Option<IndexedKeysConfig>,
     #[serde(skip_serializing)]
     command: Option<Vec<CommandKeybindConfig>>,
+}
+
+impl KeysConfigOverlay {
+    pub(crate) fn set_prefix(&mut self, prefix: String) {
+        self.prefix = Some(prefix);
+    }
 }
 
 impl<'de> Deserialize<'de> for KeysConfig {
@@ -871,6 +844,60 @@ pub enum TabBarPositionConfig {
     Bottom,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum PaneBordersConfig {
+    #[default]
+    Auto,
+    Always,
+    Off,
+}
+
+impl PaneBordersConfig {
+    pub fn draws_borders(self) -> bool {
+        !matches!(self, Self::Off)
+    }
+
+    pub fn shows_borders(self, multi_pane: bool) -> bool {
+        self.draws_borders() && (multi_pane || matches!(self, Self::Always))
+    }
+}
+
+impl<'de> Deserialize<'de> for PaneBordersConfig {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct PaneBordersVisitor;
+
+        impl<'de> de::Visitor<'de> for PaneBordersVisitor {
+            type Value = PaneBordersConfig;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("\"auto\", \"always\", \"off\", or a legacy boolean")
+            }
+
+            fn visit_bool<E: de::Error>(self, value: bool) -> Result<Self::Value, E> {
+                Ok(if value {
+                    PaneBordersConfig::Auto
+                } else {
+                    PaneBordersConfig::Off
+                })
+            }
+
+            fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
+                match value {
+                    "auto" => Ok(PaneBordersConfig::Auto),
+                    "always" => Ok(PaneBordersConfig::Always),
+                    "off" => Ok(PaneBordersConfig::Off),
+                    other => Err(E::invalid_value(de::Unexpected::Str(other), &self)),
+                }
+            }
+        }
+
+        deserializer.deserialize_any(PaneBordersVisitor)
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(default)]
 pub struct UiConfig {
@@ -903,8 +930,12 @@ pub struct UiConfig {
     pub prompt_new_tab_name: bool,
     /// Ask for a workspace name before interactive creation. Default: false.
     pub prompt_new_workspace_name: bool,
-    /// Draw borders around split panes. Default: true.
-    pub pane_borders: bool,
+    /// Draw borders around split panes. auto draws them only for split panes,
+    /// always also frames a lone pane (only while pane_outer_borders is
+    /// enabled, since every edge of a lone pane is an outer edge), off
+    /// disables them. Legacy booleans map true to auto and false to off.
+    /// Default: auto.
+    pub pane_borders: PaneBordersConfig,
     /// Draw borders along the outside edge of the pane area. Default: true.
     pub pane_outer_borders: bool,
     /// Draw interactive scrollbars beside terminal panes. Default: true.
@@ -921,15 +952,6 @@ pub struct UiConfig {
     pub tab_bar_right: Vec<TabBarRightEntryConfig>,
     /// Text inserted between visible right-side tab bar entries. Default: one space.
     pub tab_bar_right_separator: String,
-    /// Fork: tint the tab row apart from the workspace bar so the two strips
-    /// read as separate surfaces. Default: false (both use `panel_bg`).
-    pub tab_bar_contrast: bool,
-    /// Fork: reserve a gutter column between the desktop sidebar and the pane
-    /// area and draw a vertical rule in it. Default: false.
-    pub sidebar_divider: bool,
-    /// Fork: leave one blank row under the workspace bar so it reads apart from
-    /// the sidebar and tab row. Default: false.
-    pub workspace_bar_gap: bool,
     /// Format for the outer terminal window title. Empty leaves the title alone.
     /// Default: "{hostname}: {workspace}".
     pub window_title: String,
@@ -940,39 +962,6 @@ pub struct UiConfig {
     _legacy_agent_panel_scope: Option<LegacyAgentPanelScopeConfig>,
     /// Agent status indicator style. Saved values are "dots" or "symbols". Default: "dots".
     pub status_indicators: StatusIndicatorStyle,
-    /// Fork: animate the status indicator while an agent is working, like the
-    /// Claude Code spinner. Default: false.
-    pub status_indicator_animation: bool,
-    /// Sidebar agent rows scope: "all" workspaces or only the "active" one. Default: "all".
-    pub sidebar_agents_scope: SidebarAgentsScopeConfig,
-    /// Show a workspace strip above the layout, browser-tab style. Default: false.
-    pub workspace_bar: bool,
-    /// Footer under the sidebar with the active space's branch and ahead/behind
-    /// counts, above any "sidebar" command buttons. Default: false.
-    pub sidebar_git_footer: bool,
-    /// Fork: draw a close button at the right edge of every sidebar agent row so
-    /// an agent can be closed without the right-click menu. Default: false.
-    pub sidebar_agent_close_button: bool,
-    /// Fork: draw a close button in the right padding of every tab chip so a tab
-    /// can be closed with one click instead of the right-click menu. Default: false.
-    pub tab_close_button: bool,
-    /// Fork: underline what a ctrl+click would follow in pane output — http(s)
-    /// links, and file paths when `pane_file_links` is on too. Default: false.
-    pub pane_link_highlight: bool,
-    /// Fork: ctrl+click a plain-text file path in pane output to follow it as a
-    /// `file://` link (a plugin link handler decides what opens). Default: false.
-    pub pane_file_links: bool,
-    /// Fork: append "(N)" to a workspace bar cell with the number of agents in
-    /// that space waiting on you or finished unseen. Default: false.
-    pub workspace_bar_agent_counts: bool,
-    /// Fork: drag a workspace cell in the workspace bar, or an agent row in the
-    /// sidebar, to reorder it. Default: false.
-    pub drag_reorder: bool,
-    /// Command for the sidebar agent panel "+" button; runs in a new tab.
-    /// Empty (default) hides the button.
-    pub new_agent_command: String,
-    /// Right-click menu entries for the "+" button. Empty (default) = no menu.
-    pub new_agent_menu: Vec<NewAgentMenuEntry>,
     /// Expanded sidebar row composition.
     pub sidebar: SidebarConfig,
     /// Accent color for highlights, borders, and navigation UI.
@@ -1049,8 +1038,8 @@ impl Default for RemoteConfig {
 pub struct ExperimentalConfig {
     /// Allow launching herdr inside an existing herdr pane. Default: false.
     pub allow_nested: bool,
-    /// Experimental local Kitty graphics rendering for attached clients. Default: false.
-    pub kitty_graphics: bool,
+    /// Deprecated compatibility key for `terminal.kitty_graphics`.
+    pub kitty_graphics: Option<bool>,
     /// Persist pane screen history to session-history.json. Default: false.
     pub pane_history: bool,
     /// Expose the focused pane's cursor anchor to the outer terminal even when
@@ -1184,7 +1173,7 @@ impl Default for UiConfig {
             confirm_close: true,
             prompt_new_tab_name: true,
             prompt_new_workspace_name: false,
-            pane_borders: true,
+            pane_borders: PaneBordersConfig::Auto,
             pane_outer_borders: true,
             pane_scrollbars: true,
             pane_gaps: true,
@@ -1193,25 +1182,10 @@ impl Default for UiConfig {
             tab_bar_position: TabBarPositionConfig::Top,
             tab_bar_right: Vec::new(),
             tab_bar_right_separator: " ".into(),
-            tab_bar_contrast: false,
-            sidebar_divider: false,
-            workspace_bar_gap: false,
             window_title: super::window_title::default_window_title(),
             agent_panel_sort: AgentPanelSortConfig::Spaces,
             _legacy_agent_panel_scope: None,
             status_indicators: StatusIndicatorStyle::Dots,
-            status_indicator_animation: false,
-            sidebar_agents_scope: SidebarAgentsScopeConfig::All,
-            workspace_bar: false,
-            sidebar_git_footer: false,
-            sidebar_agent_close_button: false,
-            tab_close_button: false,
-            pane_file_links: false,
-            pane_link_highlight: false,
-            workspace_bar_agent_counts: false,
-            drag_reorder: false,
-            new_agent_command: String::new(),
-            new_agent_menu: Vec::new(),
             sidebar: SidebarConfig::default(),
             accent: "cyan".into(),
             toast: ToastConfig::default(),
@@ -1237,8 +1211,6 @@ impl Default for ToastConfig {
         Self {
             delivery: ToastDelivery::Off,
             delay_seconds: 1,
-            focus_on_click: false,
-            pane_titles: false,
             herdr: HerdrToastConfig::default(),
             clipboard: ClipboardToastConfig::default(),
         }
@@ -1273,8 +1245,6 @@ impl<'de> Deserialize<'de> for ToastConfig {
             delivery: Option<ToastDelivery>,
             enabled: Option<bool>,
             delay_seconds: Option<u64>,
-            focus_on_click: Option<bool>,
-            pane_titles: Option<bool>,
             herdr: HerdrToastConfig,
             clipboard: ClipboardToastConfig,
         }
@@ -1295,8 +1265,6 @@ impl<'de> Deserialize<'de> for ToastConfig {
         Ok(Self {
             delivery,
             delay_seconds,
-            focus_on_click: raw.focus_on_click.unwrap_or(default.focus_on_click),
-            pane_titles: raw.pane_titles.unwrap_or(default.pane_titles),
             herdr: raw.herdr,
             clipboard: raw.clipboard,
         })
@@ -1480,9 +1448,34 @@ status_indicators = "symbols"
     }
 
     #[test]
+    fn pane_borders_legacy_booleans_map_to_modes() {
+        let enabled: Config = toml::from_str("[ui]\npane_borders = true").unwrap();
+        assert_eq!(enabled.ui.pane_borders, PaneBordersConfig::Auto);
+
+        let disabled: Config = toml::from_str("[ui]\npane_borders = false").unwrap();
+        assert_eq!(disabled.ui.pane_borders, PaneBordersConfig::Off);
+
+        let auto: Config = toml::from_str("[ui]\npane_borders = \"auto\"").unwrap();
+        assert_eq!(auto.ui.pane_borders, PaneBordersConfig::Auto);
+
+        let off: Config = toml::from_str("[ui]\npane_borders = \"off\"").unwrap();
+        assert_eq!(off.ui.pane_borders, PaneBordersConfig::Off);
+
+        let unknown = toml::from_str::<Config>("[ui]\npane_borders = \"framed\"")
+            .unwrap_err()
+            .to_string();
+        assert!(unknown.contains("\"auto\", \"always\", \"off\", or a legacy boolean"));
+
+        let wrong_type = toml::from_str::<Config>("[ui]\npane_borders = 3")
+            .unwrap_err()
+            .to_string();
+        assert!(wrong_type.contains("\"auto\", \"always\", \"off\", or a legacy boolean"));
+    }
+
+    #[test]
     fn pane_appearance_defaults_and_parse() {
         let default_config = Config::default();
-        assert!(default_config.ui.pane_borders);
+        assert_eq!(default_config.ui.pane_borders, PaneBordersConfig::Auto);
         assert!(default_config.ui.pane_outer_borders);
         assert!(default_config.ui.pane_scrollbars);
         assert!(default_config.ui.pane_gaps);
@@ -1497,7 +1490,7 @@ status_indicators = "symbols"
 
         let toml = r#"
 [ui]
-pane_borders = false
+pane_borders = "always"
 pane_outer_borders = false
 pane_scrollbars = false
 pane_gaps = true
@@ -1514,7 +1507,7 @@ tab_bar_right = [
 tab_bar_right_separator = " · "
 "#;
         let config: Config = toml::from_str(toml).unwrap();
-        assert!(!config.ui.pane_borders);
+        assert_eq!(config.ui.pane_borders, PaneBordersConfig::Always);
         assert!(!config.ui.pane_outer_borders);
         assert!(!config.ui.pane_scrollbars);
         assert!(config.ui.pane_gaps);
@@ -2003,16 +1996,41 @@ pane_history = true
     }
 
     #[test]
-    fn kitty_graphics_default_off_and_parse() {
-        let config = Config::default();
-        assert!(!config.experimental.kitty_graphics);
+    fn kitty_graphics_default_on_with_stable_opt_out() {
+        assert!(Config::default().kitty_graphics_enabled());
 
-        let toml = r#"
+        let config: Config = toml::from_str(
+            r#"
+[terminal]
+kitty_graphics = false
+"#,
+        )
+        .unwrap();
+        assert!(!config.kitty_graphics_enabled());
+    }
+
+    #[test]
+    fn legacy_experimental_kitty_graphics_setting_remains_compatible() {
+        let disabled: Config = toml::from_str(
+            r#"
+[experimental]
+kitty_graphics = false
+"#,
+        )
+        .unwrap();
+        assert!(!disabled.kitty_graphics_enabled());
+
+        let stable_setting_wins: Config = toml::from_str(
+            r#"
+[terminal]
+kitty_graphics = false
+
 [experimental]
 kitty_graphics = true
-"#;
-        let config: Config = toml::from_str(toml).unwrap();
-        assert!(config.experimental.kitty_graphics);
+"#,
+        )
+        .unwrap();
+        assert!(!stable_setting_wins.kitty_graphics_enabled());
     }
 
     #[test]
@@ -2026,7 +2044,8 @@ switch_ascii_input_source_in_prefix = true
 "#;
         let config: Config = toml::from_str(toml).unwrap();
         assert!(config.experimental.allow_nested);
-        assert!(config.experimental.kitty_graphics);
+        assert_eq!(config.experimental.kitty_graphics, Some(true));
+        assert!(config.kitty_graphics_enabled());
         assert!(config.experimental.pane_history);
         assert!(config.experimental.switch_ascii_input_source_in_prefix);
     }

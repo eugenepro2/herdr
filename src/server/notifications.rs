@@ -6,16 +6,13 @@ use crate::layout::PaneId;
 use crate::protocol;
 use crate::terminal::TerminalRuntimeRegistry;
 
-pub(crate) fn should_forward_toast_to_clients(toast: &config::ToastConfig) -> bool {
-    toast_notify_kind(toast).is_some()
+pub(crate) fn should_forward_toast_to_clients(delivery: config::ToastDelivery) -> bool {
+    toast_notify_kind(delivery).is_some()
 }
 
-pub(crate) fn toast_notify_kind(toast: &config::ToastConfig) -> Option<protocol::NotifyKind> {
-    match toast.delivery {
+pub(crate) fn toast_notify_kind(delivery: config::ToastDelivery) -> Option<protocol::NotifyKind> {
+    match delivery {
         config::ToastDelivery::Terminal => Some(protocol::NotifyKind::Toast),
-        // With `focus_on_click`, the server emits the system toast itself so the
-        // notification carries a click action; forwarding it would duplicate it.
-        config::ToastDelivery::System if toast.focus_on_click => None,
         config::ToastDelivery::System => Some(protocol::NotifyKind::SystemToast),
         config::ToastDelivery::Off | config::ToastDelivery::Herdr => None,
     }
@@ -69,27 +66,8 @@ fn toast_event_text(kind: app::state::ToastKind) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
     use super::*;
-
-    #[test]
-    fn focus_on_click_keeps_system_toasts_on_the_server() {
-        let mut toast = config::ToastConfig {
-            delivery: config::ToastDelivery::System,
-            ..Default::default()
-        };
-        assert_eq!(
-            toast_notify_kind(&toast),
-            Some(protocol::NotifyKind::SystemToast)
-        );
-
-        toast.focus_on_click = true;
-        assert_eq!(toast_notify_kind(&toast), None);
-        assert!(!should_forward_toast_to_clients(&toast));
-
-        toast.delivery = config::ToastDelivery::Terminal;
-        assert_eq!(toast_notify_kind(&toast), Some(protocol::NotifyKind::Toast));
-    }
-
     #[cfg(unix)]
     use crate::detect::Agent;
     #[cfg(unix)]
