@@ -706,6 +706,60 @@ impl App {
         }
     }
 
+    /// Fork (`[ui.toast] pane_titles`): desktop-notification text that leads with
+    /// what the agent actually asked — its reported `summary`, else the chat's own
+    /// terminal title — instead of just naming the agent. herdr's in-window toast
+    /// keeps the upstream wording; only `terminal`/`system` delivery is rewritten.
+    pub(crate) fn desktop_notification_text(
+        &self,
+        ws_idx: usize,
+        pane_id: crate::layout::PaneId,
+        title: &str,
+        context: &str,
+    ) -> (String, String) {
+        /// Pane metadata token an agent sets to say what it is waiting on:
+        /// `herdr pane report-metadata <pane> --source ... --token summary=...`.
+        const NOTIFICATION_SUMMARY_TOKEN: &str = "summary";
+
+        if !self.state.toast_config.pane_titles
+            || !matches!(
+                self.state.toast_config.delivery,
+                crate::config::ToastDelivery::Terminal | crate::config::ToastDelivery::System
+            )
+        {
+            return (title.to_owned(), context.to_owned());
+        }
+
+        let terminal = self
+            .state
+            .workspaces
+            .get(ws_idx)
+            .and_then(|ws| ws.terminal_id(pane_id))
+            .and_then(|terminal_id| self.state.terminals.get(terminal_id));
+        let pane_title = terminal
+            .and_then(|terminal| terminal.terminal_title_stripped())
+            .filter(|pane_title| !pane_title.trim().is_empty());
+        // Agents report what they are actually asking through
+        // `pane report-metadata --token summary=...`; it beats any title we can
+        // scrape, so it becomes the headline when it is there.
+        let summary = terminal
+            .and_then(|terminal| {
+                terminal
+                    .metadata_tokens
+                    .values()
+                    .remove(NOTIFICATION_SUMMARY_TOKEN)
+            })
+            .map(|summary| summary.trim().to_owned())
+            .filter(|summary| !summary.is_empty());
+
+        match (summary, pane_title) {
+            (Some(summary), Some(pane_title)) => (summary, format!("{pane_title} · {title}")),
+            (Some(summary), None) => (summary, format!("{title} · {context}")),
+            (None, Some(pane_title)) => (pane_title, format!("{title} · {context}")),
+            (None, None) => (title.to_owned(), context.to_owned()),
+        }
+    }
+
     pub(crate) fn refresh_agent_notification_delivery_contexts(
         &mut self,
         deliveries: &mut [crate::app::state::AgentNotificationDelivery],
@@ -2448,6 +2502,81 @@ mod tests {
         assert_eq!(
             app.state.toast.as_ref().map(|toast| toast.context.as_str()),
             Some("__herdr_original__ · 1")
+        );
+    }
+    #[test]
+    fn pane_titles_lead_the_desktop_notification_with_the_chat_title() {
+        let (_api_tx, api_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut app = App::new(
+            &crate::config::Config::default(),
+            crate::app::AppPolicy::TEST,
+            None,
+            api_rx,
+            crate::api::EventHub::default(),
+        );
+        let workspace = crate::workspace::Workspace::test_new("solo");
+        let pane_id = workspace.tabs[0].root_pane;
+        app.state.workspaces = vec![workspace];
+        app.state.ensure_test_terminals();
+        app.state.toast_config.delivery = crate::config::ToastDelivery::System;
+        let terminal_id = app.state.workspaces[0]
+            .terminal_id(pane_id)
+            .cloned()
+            .unwrap();
+        app.state
+            .terminals
+            .get_mut(&terminal_id)
+            .unwrap()
+            .set_terminal_title(Some("✳ Opening chat from a notification".into()));
+
+        assert_eq!(
+            app.desktop_notification_text(0, pane_id, "claude needs attention", "solo · 4"),
+            (
+                "claude needs attention".to_string(),
+                "solo · 4".to_string()
+            ),
+            "off by default"
+        );
+
+        app.state.toast_config.pane_titles = true;
+        assert_eq!(
+            app.desktop_notification_text(0, pane_id, "claude needs attention", "solo · 4"),
+            (
+                "Opening chat from a notification".to_string(),
+                "claude needs attention · solo · 4".to_string()
+            )
+        );
+
+        // A reported summary says what the agent is actually asking, so it leads.
+        app.state
+            .terminals
+            .get_mut(&terminal_id)
+            .unwrap()
+            .metadata_tokens
+            .patch(
+                std::collections::HashMap::from([(
+                    "summary".to_string(),
+                    Some("Allow Bash: cargo build?".to_string()),
+                )]),
+                None,
+                std::time::Instant::now(),
+            );
+        assert_eq!(
+            app.desktop_notification_text(0, pane_id, "claude needs attention", "solo · 4"),
+            (
+                "Allow Bash: cargo build?".to_string(),
+                "Opening chat from a notification · claude needs attention".to_string()
+            )
+        );
+
+        // herdr's own in-window toast keeps the upstream wording.
+        app.state.toast_config.delivery = crate::config::ToastDelivery::Herdr;
+        assert_eq!(
+            app.desktop_notification_text(0, pane_id, "claude needs attention", "solo · 4"),
+            (
+                "claude needs attention".to_string(),
+                "solo · 4".to_string()
+            )
         );
     }
 }

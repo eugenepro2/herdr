@@ -111,10 +111,19 @@ impl HeadlessServer {
         let agent = known_agent
             .map(crate::detect::agent_label)
             .map(str::to_owned);
+        // Fork (`[ui.toast] pane_titles`): the desktop toast leads with what the
+        // agent reported it is asking. Rewriting it here keeps every client on the
+        // same text; the helper is a no-op unless the flag is on.
+        let (title, context) = self.app.desktop_notification_text(
+            ws_idx,
+            pane_id,
+            &format!("{agent_label} {event_text}"),
+            &context,
+        );
         self.send_to_client_shells(ServerMessage::SemanticNotification(
             protocol::SemanticNotification {
                 kind: semantic_kind,
-                title: format!("{agent_label} {event_text}"),
+                title,
                 body: non_empty_body(&context),
                 sound,
                 agent,
