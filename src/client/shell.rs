@@ -211,6 +211,12 @@ fn status_icon(
         (StatusIndicatorStyle::Symbols, AgentStatus::Done) => "✓",
         (StatusIndicatorStyle::Symbols, AgentStatus::Idle) => "○",
         (StatusIndicatorStyle::Symbols, AgentStatus::Unknown) => "·",
+        // Fork: one star family, denser the more attention a state wants.
+        (StatusIndicatorStyle::Claude, AgentStatus::Blocked) => "✻",
+        (StatusIndicatorStyle::Claude, AgentStatus::Working) => "✳",
+        (StatusIndicatorStyle::Claude, AgentStatus::Done) => "✓",
+        (StatusIndicatorStyle::Claude, AgentStatus::Idle) => "✢",
+        (StatusIndicatorStyle::Claude, AgentStatus::Unknown) => "·",
     }
 }
 

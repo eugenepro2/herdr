@@ -246,6 +246,8 @@ impl ClientShellConfig {
                             description: command.description.clone(),
                             width: None,
                             height: None,
+                            button: None,
+                            button_position: crate::config::ButtonPosition::default(),
                         })
                     })
                     .collect();
@@ -273,6 +275,8 @@ impl ClientShellConfig {
                         description: command.description.clone(),
                         width: None,
                         height: None,
+                        button: None,
+                        button_position: crate::config::ButtonPosition::default(),
                     });
             }
         }

@@ -114,6 +114,9 @@ pub enum StatusIndicatorStyle {
     #[default]
     Dots,
     Symbols,
+    /// Fork: one glyph family in the Claude Code spirit — stars of rising
+    /// density, plus a check mark for finished work.
+    Claude,
 }
 
 impl StatusIndicatorStyle {
@@ -121,8 +124,25 @@ impl StatusIndicatorStyle {
         match self {
             Self::Dots => "dots",
             Self::Symbols => "symbols",
+            Self::Claude => "claude",
         }
     }
+}
+
+/// One entry of the "+" button right-click menu: label shown, command run in a new tab.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(default)]
+pub struct NewAgentMenuEntry {
+    pub label: String,
+    pub command: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum SidebarAgentsScopeConfig {
+    #[default]
+    All,
+    Active,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
@@ -199,6 +219,12 @@ fn parse_right_click_passthrough_modifier(value: &str) -> Option<Option<KeyModif
 pub struct ToastConfig {
     pub delivery: ToastDelivery,
     pub delay_seconds: u64,
+    /// macOS: show system toasts from the server process so a click can focus
+    /// the notifying workspace/tab/pane instead of just raising the terminal.
+    pub focus_on_click: bool,
+    /// Lead desktop notifications with the pane's terminal title (the agent's
+    /// own summary of the chat) instead of the bare agent name.
+    pub pane_titles: bool,
     pub herdr: HerdrToastConfig,
     pub clipboard: ClipboardToastConfig,
 }
@@ -952,6 +978,15 @@ pub struct UiConfig {
     pub tab_bar_right: Vec<TabBarRightEntryConfig>,
     /// Text inserted between visible right-side tab bar entries. Default: one space.
     pub tab_bar_right_separator: String,
+    /// Fork: tint the tab row apart from the workspace bar so the two strips
+    /// read as separate surfaces. Default: false (both use `panel_bg`).
+    pub tab_bar_contrast: bool,
+    /// Fork: reserve a gutter column between the desktop sidebar and the pane
+    /// area and draw a vertical rule in it. Default: false.
+    pub sidebar_divider: bool,
+    /// Fork: leave one blank row under the workspace bar so it reads apart from
+    /// the sidebar and tab row. Default: false.
+    pub workspace_bar_gap: bool,
     /// Format for the outer terminal window title. Empty leaves the title alone.
     /// Default: "{hostname}: {workspace}".
     pub window_title: String,
@@ -962,6 +997,39 @@ pub struct UiConfig {
     _legacy_agent_panel_scope: Option<LegacyAgentPanelScopeConfig>,
     /// Agent status indicator style. Saved values are "dots" or "symbols". Default: "dots".
     pub status_indicators: StatusIndicatorStyle,
+    /// Fork: animate the status indicator while an agent is working, like the
+    /// Claude Code spinner. Default: false.
+    pub status_indicator_animation: bool,
+    /// Sidebar agent rows scope: "all" workspaces or only the "active" one. Default: "all".
+    pub sidebar_agents_scope: SidebarAgentsScopeConfig,
+    /// Show a workspace strip above the layout, browser-tab style. Default: false.
+    pub workspace_bar: bool,
+    /// Footer under the sidebar with the active space's branch and ahead/behind
+    /// counts, above any "sidebar" command buttons. Default: false.
+    pub sidebar_git_footer: bool,
+    /// Fork: draw a close button at the right edge of every sidebar agent row so
+    /// an agent can be closed without the right-click menu. Default: false.
+    pub sidebar_agent_close_button: bool,
+    /// Fork: draw a close button in the right padding of every tab chip so a tab
+    /// can be closed with one click instead of the right-click menu. Default: false.
+    pub tab_close_button: bool,
+    /// Fork: underline what a ctrl+click would follow in pane output — http(s)
+    /// links, and file paths when `pane_file_links` is on too. Default: false.
+    pub pane_link_highlight: bool,
+    /// Fork: ctrl+click a plain-text file path in pane output to follow it as a
+    /// `file://` link (a plugin link handler decides what opens). Default: false.
+    pub pane_file_links: bool,
+    /// Fork: append "(N)" to a workspace bar cell with the number of agents in
+    /// that space waiting on you or finished unseen. Default: false.
+    pub workspace_bar_agent_counts: bool,
+    /// Fork: drag a workspace cell in the workspace bar, or an agent row in the
+    /// sidebar, to reorder it. Default: false.
+    pub drag_reorder: bool,
+    /// Command for the sidebar agent panel "+" button; runs in a new tab.
+    /// Empty (default) hides the button.
+    pub new_agent_command: String,
+    /// Right-click menu entries for the "+" button. Empty (default) = no menu.
+    pub new_agent_menu: Vec<NewAgentMenuEntry>,
     /// Expanded sidebar row composition.
     pub sidebar: SidebarConfig,
     /// Accent color for highlights, borders, and navigation UI.
@@ -1182,10 +1250,25 @@ impl Default for UiConfig {
             tab_bar_position: TabBarPositionConfig::Top,
             tab_bar_right: Vec::new(),
             tab_bar_right_separator: " ".into(),
+            tab_bar_contrast: false,
+            sidebar_divider: false,
+            workspace_bar_gap: false,
             window_title: super::window_title::default_window_title(),
             agent_panel_sort: AgentPanelSortConfig::Spaces,
             _legacy_agent_panel_scope: None,
             status_indicators: StatusIndicatorStyle::Dots,
+            status_indicator_animation: false,
+            sidebar_agents_scope: SidebarAgentsScopeConfig::All,
+            workspace_bar: false,
+            sidebar_git_footer: false,
+            sidebar_agent_close_button: false,
+            tab_close_button: false,
+            pane_file_links: false,
+            pane_link_highlight: false,
+            workspace_bar_agent_counts: false,
+            drag_reorder: false,
+            new_agent_command: String::new(),
+            new_agent_menu: Vec::new(),
             sidebar: SidebarConfig::default(),
             accent: "cyan".into(),
             toast: ToastConfig::default(),
@@ -1211,6 +1294,8 @@ impl Default for ToastConfig {
         Self {
             delivery: ToastDelivery::Off,
             delay_seconds: 1,
+            focus_on_click: false,
+            pane_titles: false,
             herdr: HerdrToastConfig::default(),
             clipboard: ClipboardToastConfig::default(),
         }
@@ -1245,6 +1330,8 @@ impl<'de> Deserialize<'de> for ToastConfig {
             delivery: Option<ToastDelivery>,
             enabled: Option<bool>,
             delay_seconds: Option<u64>,
+            focus_on_click: Option<bool>,
+            pane_titles: Option<bool>,
             herdr: HerdrToastConfig,
             clipboard: ClipboardToastConfig,
         }
@@ -1265,6 +1352,8 @@ impl<'de> Deserialize<'de> for ToastConfig {
         Ok(Self {
             delivery,
             delay_seconds,
+            focus_on_click: raw.focus_on_click.unwrap_or(default.focus_on_click),
+            pane_titles: raw.pane_titles.unwrap_or(default.pane_titles),
             herdr: raw.herdr,
             clipboard: raw.clipboard,
         })
