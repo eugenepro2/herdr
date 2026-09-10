@@ -97,6 +97,8 @@ pub(crate) struct ClientShellConfig {
     pub(super) new_agent_menu: Vec<crate::config::NewAgentMenuEntry>,
     /// Fork: pin the focused space's branch and ahead/behind under the sidebar.
     pub(super) sidebar_git_footer: bool,
+    /// Fork: underline followable links in pane output, and shape the pointer.
+    pub(super) pane_link_highlight: bool,
     /// Fork: animate the working indicator like the Claude Code spinner.
     pub(super) status_indicator_animation: bool,
     /// Fork: spinner frame for this compose, `None` while nothing is working.
@@ -353,6 +355,8 @@ pub(crate) enum ClientShellAction {
     },
     ClipboardWrite(Vec<u8>),
     OpenSafeWebUrl(String),
+    /// Fork: shape the host pointer — true is a hand over a followable link.
+    MouseShape(bool),
     /// Fork: alt+click resolved to a folder on this machine; reveal it.
     OpenLocalFolder(String),
     ActivateEndpoint {
@@ -1015,6 +1019,8 @@ pub(crate) struct ClientShellState {
     pub(super) pane_scroll_targets: HashMap<String, usize>,
     pub(super) copy_feedback: Option<crate::app::state::CopyFeedback>,
     pub(super) copy_feedback_deadline: Option<std::time::Instant>,
+    /// Fork: whether the pointer currently sits on a followable link.
+    pub(super) pointer_over_link: bool,
     /// Fork: current spinner frame, advanced only while an agent works.
     pub(super) working_anim_frame: u8,
     pub(super) next_working_anim_tick: Option<std::time::Instant>,
@@ -1173,6 +1179,7 @@ impl ClientShellState {
             pane_scroll_targets: HashMap::new(),
             copy_feedback: None,
             copy_feedback_deadline: None,
+            pointer_over_link: false,
             working_anim_frame: 0,
             next_working_anim_tick: None,
             host_mouse_pixels: None,

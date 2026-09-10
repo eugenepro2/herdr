@@ -265,6 +265,19 @@ pub(super) fn effective_sgr_pixel_mouse(
     enabled && requested && exact_geometry
 }
 
+/// Fork: shape the host pointer with OSC 22 — a hand over a followable link,
+/// the default everywhere else. Ghostty understands it; terminals that do not
+/// ignore the sequence, so this is safe to send unconditionally.
+pub(super) fn set_mouse_shape(pointer: bool) -> io::Result<()> {
+    let shape: &[u8] = if pointer {
+        b"\x1b]22;pointer\x1b\\"
+    } else {
+        b"\x1b]22;default\x1b\\"
+    };
+    io::stdout().write_all(shape)?;
+    io::stdout().flush()
+}
+
 pub(super) fn set_mouse_capture(enabled: bool, sgr_pixels: bool) -> io::Result<()> {
     crate::terminal_modes::clear_host_mouse_reporting(&mut io::stdout())?;
     #[cfg(windows)]
@@ -336,6 +349,8 @@ fn restore_terminal_state(
         DisableBracketedPaste
     );
     let _ = set_mouse_capture(false, false);
+    // Fork: without this the host keeps the hand pointer after herdr exits.
+    let _ = set_mouse_shape(false);
     #[cfg(windows)]
     if let Some(mode) = restore_windows_input_mode {
         restore_windows_input_mode_value(mode);

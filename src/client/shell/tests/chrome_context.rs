@@ -725,3 +725,48 @@ fn alt_click_in_a_pane_asks_for_the_folder_and_ctrl_click_does_not() {
         "alt+click asks for the folder holding the file: {traffic}"
     );
 }
+
+#[test]
+fn hovering_an_underlined_link_shapes_the_host_pointer() {
+    let mut config = Config::default();
+    config.ui.pane_link_highlight = true;
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(snapshot()));
+    let mut frame = surface();
+    // The endpoint underlines followable links; the client reads that back.
+    for cell in frame.frame.cells.iter_mut() {
+        cell.modifier |= ratatui::style::Modifier::UNDERLINED.bits();
+    }
+    state.set_pane_surface(frame);
+    state.compose(120, 30).expect("composed with a pane");
+    let inner = state.hits.panes.first().expect("pane hit").inner_rect;
+
+    let moved = |state: &mut ClientShellState, column, row| {
+        state.handle_raw_events(vec![RawInputEvent::Mouse(MouseEvent {
+            kind: MouseEventKind::Moved,
+            column,
+            row,
+            modifiers: KeyModifiers::empty(),
+        })])
+    };
+
+    let over = moved(&mut state, inner.x, inner.y);
+    assert!(
+        format!("{:?}", over.actions).contains("MouseShape(true)"),
+        "hovering a link asks for the hand: {:?}",
+        over.actions
+    );
+    // Leaving the pane hands the default shape back, once.
+    let away = moved(&mut state, 0, 0);
+    assert!(
+        format!("{:?}", away.actions).contains("MouseShape(false)"),
+        "leaving a link restores the pointer: {:?}",
+        away.actions
+    );
+    let again = moved(&mut state, 0, 0);
+    assert!(
+        !format!("{:?}", again.actions).contains("MouseShape"),
+        "the shape is only sent when it changes: {:?}",
+        again.actions
+    );
+}

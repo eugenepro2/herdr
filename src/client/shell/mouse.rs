@@ -609,8 +609,65 @@ impl ClientShellState {
         }
     }
 
+    /// Fork: `ui.pane_link_highlight` also shapes the host pointer, so hovering
+    /// something a ctrl+click would follow shows a hand.
+    ///
+    /// The underline the same flag draws is the signal: it is already in the
+    /// composed surface, so the endpoint is never asked, which matters most for
+    /// a saved SSH machine where a per-cell round trip would be absurd.
+    // ponytail: underlined text that is not a link also shows the hand; give link
+    // cells their own Herdr modifier bit if that ever becomes annoying.
+    fn track_pointer_over_link(&mut self, mouse: MouseEvent, outcome: &mut ClientShellInput) {
+        if !matches!(
+            mouse.kind,
+            MouseEventKind::Moved | MouseEventKind::Down(_) | MouseEventKind::Up(_)
+        ) {
+            return;
+        }
+        let over_link = self.config.pane_link_highlight && self.pointer_cell_is_underlined(mouse);
+        if over_link != self.pointer_over_link {
+            self.pointer_over_link = over_link;
+            outcome.actions.push(ClientShellAction::MouseShape(over_link));
+        }
+    }
+
+    fn pointer_cell_is_underlined(&self, mouse: MouseEvent) -> bool {
+        let point = (mouse.column, mouse.row);
+        if !self
+            .hits
+            .panes
+            .iter()
+            .any(|hit| super::contains(hit.inner_rect, point))
+        {
+            return false;
+        }
+        let Some((cols, rows)) = self.last_composed_size else {
+            return false;
+        };
+        let surface_area = self.layout(cols, rows).pane_surface;
+        let Some(surface) = self.pane_surface.as_ref() else {
+            return false;
+        };
+        let x = mouse.column.checked_sub(surface_area.x).map(usize::from);
+        let y = mouse.row.checked_sub(surface_area.y).map(usize::from);
+        let (Some(x), Some(y)) = (x, y) else {
+            return false;
+        };
+        let frame = &surface.frame;
+        if x >= usize::from(frame.width) || y >= usize::from(frame.height) {
+            return false;
+        }
+        frame
+            .cells
+            .get(y * usize::from(frame.width) + x)
+            .is_some_and(|cell| {
+                cell.modifier & ratatui::style::Modifier::UNDERLINED.bits() != 0
+            })
+    }
+
     pub(super) fn handle_mouse(&mut self, mouse: MouseEvent, outcome: &mut ClientShellInput) {
         let point = (mouse.column, mouse.row);
+        self.track_pointer_over_link(mouse, outcome);
         if self.mode == ClientShellMode::Navigate
             && self.workspace_preview_action_blocked()
             && self.overlay.is_none()

@@ -54,6 +54,11 @@ pub(super) fn dispatch_client_shell_actions(
                     Err(err) => warn!(err = %err, url = %url, "failed to reveal pane file folder"),
                 }
             }
+            shell::ClientShellAction::MouseShape(pointer) => {
+                if let Err(err) = super::terminal_setup::set_mouse_shape(pointer) {
+                    warn!(err = %err, "failed to set host mouse shape");
+                }
+            }
             shell::ClientShellAction::ReplayMouse(events) => replay_mouse.extend(events),
             shell::ClientShellAction::Keybind(action) => {
                 debug!(
