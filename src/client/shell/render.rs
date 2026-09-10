@@ -334,6 +334,8 @@ pub(super) fn render_shell(
         hits.agent_scrollbar = Rect::default();
         hits.agent_sort_toggle = Rect::default();
         hits.new_agent = Rect::default();
+        hits.agent_close_buttons.clear();
+        hits.tab_close_buttons.clear();
         hits.new_workspace = Rect::default();
         hits.workspace_bar_new = Rect::default();
         hits.command_buttons.clear();

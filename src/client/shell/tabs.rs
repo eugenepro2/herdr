@@ -127,6 +127,14 @@ pub(crate) fn render_tab_bar(
         );
         put_text(buffer, rect.x, rect.y, rect.width, &text, style);
         hits.tabs.push((rect, tab.tab_id.clone()));
+        // Fork: `ui.tab_close_button` draws "✕" over the chip's right padding
+        // column. The label is centred with at least two padding columns a side,
+        // so at MIN_TAB_WIDTH and up the button never covers text.
+        if config.tab_close_button && mouse_chrome && width >= MIN_TAB_WIDTH {
+            let button = Rect::new(rect.right().saturating_sub(2), rect.y, 1, 1);
+            put_text(buffer, button.x, button.y, 1, "✕", style);
+            hits.tab_close_buttons.push((button, tab.tab_id.clone()));
+        }
         first_visible.get_or_insert(index);
         last_visible = Some(index);
         x = x.saturating_add(width + 1);

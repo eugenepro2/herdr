@@ -1406,3 +1406,81 @@ fn new_agent_button_opens_a_tab_and_right_click_offers_the_menu() {
         "picking an entry runs its command: {traffic}"
     );
 }
+
+#[test]
+fn close_buttons_close_their_tab_and_their_agent_pane() {
+    let mut config = Config::default();
+    config.ui.tab_close_button = true;
+    config.ui.sidebar_agent_close_button = true;
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    let mut projection = snapshot();
+    projection.agents = vec![ClientShellAgent {
+        pane_id: "pane_1".into(),
+        workspace_id: "ws_1".into(),
+        tab_id: "tab_1".into(),
+        name: None,
+        display_agent: None,
+        agent: None,
+        title: None,
+        terminal_title: None,
+        terminal_title_stripped: None,
+        agent_status: AgentStatus::Idle,
+        state_change_seq: 0,
+        state_labels: Vec::new(),
+        tokens: Vec::new(),
+        focused: false,
+    }];
+    state.set_snapshot(Box::new(projection));
+    state.set_pane_surface(surface());
+    state.compose(120, 30).expect("composed with close buttons");
+
+    let (tab_button, tab_id) = state
+        .hits
+        .tab_close_buttons
+        .first()
+        .cloned()
+        .expect("tab close button");
+    assert_eq!(tab_id, "tab_1");
+    let (agent_button, pane_id) = state
+        .hits
+        .agent_close_buttons
+        .first()
+        .cloned()
+        .expect("agent close button");
+    assert_eq!(pane_id, "pane_1");
+    // The row text stops before the button instead of running under it.
+    let agent_row = state.hits.agents.first().expect("agent row").0;
+    assert!(agent_row.right() < agent_button.x + 1);
+
+    let closed_tab = state.handle_raw_events(vec![RawInputEvent::Mouse(MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: tab_button.x,
+        row: tab_button.y,
+        modifiers: KeyModifiers::empty(),
+    })]);
+    let traffic = format!("{:?}{:?}", closed_tab.requests, closed_tab.actions);
+    assert!(
+        traffic.contains("TabClose") || traffic.contains("tab.close"),
+        "tab button closes its tab: {traffic}"
+    );
+
+    let closed_pane = state.handle_raw_events(vec![RawInputEvent::Mouse(MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: agent_button.x,
+        row: agent_button.y,
+        modifiers: KeyModifiers::empty(),
+    })]);
+    let traffic = format!("{:?}{:?}", closed_pane.requests, closed_pane.actions);
+    assert!(
+        traffic.contains("PaneClose") || traffic.contains("pane.close"),
+        "agent button closes its pane: {traffic}"
+    );
+
+    // Off by default: no buttons at all.
+    let mut plain = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    plain.set_snapshot(Box::new(state.snapshot.as_deref().expect("snapshot").clone()));
+    plain.set_pane_surface(surface());
+    plain.compose(120, 30).expect("composed without close buttons");
+    assert!(plain.hits.tab_close_buttons.is_empty());
+    assert!(plain.hits.agent_close_buttons.is_empty());
+}

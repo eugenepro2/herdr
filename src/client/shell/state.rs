@@ -80,6 +80,10 @@ pub(crate) struct ClientShellConfig {
     pub(super) spaces: SpacesSidebarConfig,
     pub(super) agents: crate::config::AgentsSidebarConfig,
     pub(super) agent_panel_sort: crate::config::AgentPanelSortConfig,
+    /// Fork: draw a close button at the right edge of every sidebar agent row.
+    pub(super) sidebar_agent_close_button: bool,
+    /// Fork: draw a close button in the right padding of every tab chip.
+    pub(super) tab_close_button: bool,
     /// Fork: command the agent panel "+" button runs in a new tab. Empty hides it.
     pub(super) new_agent_command: String,
     /// Fork: right-click entries for that button. Empty means no menu.
@@ -184,6 +188,10 @@ pub(super) struct ShellHitMap {
     pub(super) agent_sort_toggle: Rect,
     /// Fork: the "+" button in the agent panel header.
     pub(super) new_agent: Rect,
+    /// Fork: per-agent close buttons, with the pane they close.
+    pub(super) agent_close_buttons: Vec<(Rect, String)>,
+    /// Fork: per-tab close buttons, with the tab they close.
+    pub(super) tab_close_buttons: Vec<(Rect, String)>,
     pub(super) sidebar_divider: Rect,
     pub(super) sidebar_section_divider: Rect,
     pub(super) sidebar_toggle: Rect,

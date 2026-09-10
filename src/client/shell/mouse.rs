@@ -1959,6 +1959,38 @@ impl ClientShellState {
                     outcome.repaint = true;
                     return;
                 }
+                // Fork: close buttons on tab chips and sidebar agent rows. Both reuse
+                // the endpoint methods behind the context menu's Close entries.
+                let close_tab = self
+                    .hits
+                    .tab_close_buttons
+                    .iter()
+                    .find(|(rect, _)| super::contains(*rect, point))
+                    .map(|(_, tab_id)| tab_id.clone());
+                if let Some(tab_id) = close_tab {
+                    self.push_endpoint_method(
+                        crate::api::schema::Method::TabClose(crate::api::schema::TabTarget {
+                            tab_id,
+                        }),
+                        outcome,
+                    );
+                    return;
+                }
+                let close_pane = self
+                    .hits
+                    .agent_close_buttons
+                    .iter()
+                    .find(|(rect, _)| super::contains(*rect, point))
+                    .map(|(_, pane_id)| pane_id.clone());
+                if let Some(pane_id) = close_pane {
+                    self.push_endpoint_method(
+                        crate::api::schema::Method::PaneClose(crate::api::schema::PaneTarget {
+                            pane_id,
+                        }),
+                        outcome,
+                    );
+                    return;
+                }
                 // Fork: the agent panel "+" opens a new tab running new_agent_command.
                 if super::contains(self.hits.new_agent, point) {
                     let command = self.config.new_agent_command.clone();

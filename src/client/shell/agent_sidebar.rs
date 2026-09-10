@@ -245,14 +245,46 @@ pub(super) fn render_agent_list<T>(
         .saturating_sub(metrics.offset_from_bottom);
     let show_scrollbar = metrics.max_offset_from_bottom > 0 && body.width > 1;
     let content_width = body.width.saturating_sub(u16::from(show_scrollbar));
+    // Fork: `ui.sidebar_agent_close_button` takes two columns off every row so the
+    // text stops before the button instead of running under it.
+    let close_gutter = u16::from(
+        config.sidebar_agent_close_button && config.mouse_capture && content_width >= 8,
+    ) * 2;
     let mut y = body.y;
     for (index, row) in rows.iter().enumerate().skip(*agent_scroll) {
         let height = row_heights[index].min(body.height);
         if y.saturating_add(height) > body.bottom() {
             break;
         }
-        let rect = Rect::new(body.x, y, content_width, height);
+        let rect = Rect::new(body.x, y, content_width.saturating_sub(close_gutter), height);
+        let agents_before = hits.agents.len();
+        let endpoint_agents_before = hits.endpoint_agents.len();
         render_row(buffer, rect, row, hits);
+        // The row callback is generic, so the pane it just registered is the only
+        // way back to its id.
+        if close_gutter > 0 {
+            let pane_id = if hits.agents.len() > agents_before {
+                hits.agents.last().map(|(_, pane_id)| pane_id.clone())
+            } else if hits.endpoint_agents.len() > endpoint_agents_before {
+                hits.endpoint_agents
+                    .last()
+                    .map(|(_, _, pane_id)| pane_id.clone())
+            } else {
+                None
+            };
+            if let Some(pane_id) = pane_id {
+                let button = Rect::new(rect.right().saturating_add(1), rect.y, 1, 1);
+                put_text(
+                    buffer,
+                    button.x,
+                    button.y,
+                    1,
+                    "✕",
+                    Style::default().fg(config.palette.overlay0),
+                );
+                hits.agent_close_buttons.push((button, pane_id));
+            }
+        }
         y = y
             .saturating_add(height)
             .saturating_add(if index + 1 < rows.len() {
