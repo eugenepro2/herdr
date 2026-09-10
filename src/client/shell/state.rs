@@ -97,6 +97,9 @@ pub(crate) struct ClientShellConfig {
     pub(super) new_agent_menu: Vec<crate::config::NewAgentMenuEntry>,
     /// Fork: pin the focused space's branch and ahead/behind under the sidebar.
     pub(super) sidebar_git_footer: bool,
+    /// Fork: the endpoint raises the system toast itself so a click can focus the
+    /// pane that asked; the client must not raise a second one.
+    pub(super) toast_focus_on_click: bool,
     /// Fork: underline followable links in pane output, and shape the pointer.
     pub(super) pane_link_highlight: bool,
     /// Fork: animate the working indicator like the Claude Code spinner.

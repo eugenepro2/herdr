@@ -228,7 +228,13 @@ impl ClientShellState {
                         body: pending.event.body,
                     });
                 }
-                crate::config::ToastDelivery::System if !suppress_external => {
+                // Fork: with `[ui.toast] focus_on_click` the endpoint shows the
+                // system toast itself — only it knows which pane asked, so only it
+                // can make the click focus that pane. Raising one here too would
+                // double every notification.
+                crate::config::ToastDelivery::System
+                    if !suppress_external && !self.config.toast_focus_on_click =>
+                {
                     effects.push(ClientShellNotificationEffect::System {
                         title: pending.event.title,
                         body: pending.event.body,

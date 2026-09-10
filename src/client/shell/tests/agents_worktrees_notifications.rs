@@ -1484,3 +1484,15 @@ fn close_buttons_close_their_tab_and_their_agent_pane() {
     assert!(plain.hits.tab_close_buttons.is_empty());
     assert!(plain.hits.agent_close_buttons.is_empty());
 }
+
+#[test]
+fn focus_on_click_leaves_the_system_toast_to_the_endpoint() {
+    let mut config = Config::default();
+    config.ui.toast.delivery = crate::config::ToastDelivery::System;
+    let plain = ClientShellConfig::from_config(&config);
+    assert!(!plain.toast_focus_on_click);
+
+    config.ui.toast.focus_on_click = true;
+    let focused = ClientShellConfig::from_config(&config);
+    assert!(focused.toast_focus_on_click);
+}
