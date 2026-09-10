@@ -411,6 +411,7 @@ mod tests {
                 focus: true,
                 label: None,
                 env: Default::default(),
+                command: None,
             },
         );
         let _: SuccessResponse = serde_json::from_str(&response).unwrap();

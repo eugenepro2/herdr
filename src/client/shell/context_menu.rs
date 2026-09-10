@@ -4,7 +4,10 @@ impl ClientContextMenuOverlay {
     pub(super) fn items(&self) -> Vec<ClientContextMenuItem> {
         use ClientContextMenuAction as Action;
 
-        let item = |label, action| ClientContextMenuItem { label, action };
+        let item = |label: &str, action| ClientContextMenuItem {
+            label: label.to_owned(),
+            action,
+        };
         match &self.target {
             ClientContextMenuTarget::Workspace { is_git: false, .. } => {
                 vec![item("Rename", Action::Rename), item("Close", Action::Close)]
@@ -41,6 +44,13 @@ impl ClientContextMenuOverlay {
                     Action::ToggleGroup,
                 ),
             ],
+            ClientContextMenuTarget::NewAgent { entries } => entries
+                .iter()
+                .enumerate()
+                .map(|(index, entry)| {
+                    item(&entry.label, Action::NewAgentCommand(index))
+                })
+                .collect(),
             ClientContextMenuTarget::Tab { .. } => vec![
                 item("New tab", Action::NewTab),
                 item("Rename", Action::Rename),
@@ -213,6 +223,14 @@ impl ClientShellState {
                 action,
                 outcome,
             ),
+            ClientContextMenuTarget::NewAgent { entries } => {
+                if let ClientContextMenuAction::NewAgentCommand(index) = action {
+                    if let Some(entry) = entries.get(index) {
+                        let command = entry.command.clone();
+                        self.request_new_agent_tab(command, outcome);
+                    }
+                }
+            }
         }
         outcome.repaint = true;
     }
@@ -337,6 +355,7 @@ impl ClientShellState {
                             focus: true,
                             label: None,
                             env: Default::default(),
+                            command: None,
                         }),
                         outcome,
                     );

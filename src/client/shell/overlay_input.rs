@@ -1028,6 +1028,7 @@ impl ClientShellState {
                     label: (!trimmed.is_empty() && trimmed != default_name)
                         .then(|| trimmed.to_owned()),
                     env: Default::default(),
+                    command: None,
                 },
             )),
             ClientRenameTarget::Tab {

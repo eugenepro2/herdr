@@ -1740,6 +1740,22 @@ impl ClientShellState {
                 if !self.config.mouse_capture {
                     return;
                 }
+                // Fork: right click on the agent panel "+" opens ui.new_agent_menu.
+                if super::contains(self.hits.new_agent, point)
+                    && !self.config.new_agent_menu.is_empty()
+                {
+                    let entries = self.config.new_agent_menu.clone();
+                    self.overlay = Some(ClientShellOverlay::ContextMenu(
+                        ClientContextMenuOverlay {
+                            target: ClientContextMenuTarget::NewAgent { entries },
+                            x: mouse.column,
+                            y: mouse.row,
+                            highlighted: 0,
+                        },
+                    ));
+                    outcome.repaint = true;
+                    return;
+                }
                 let workspace_id = (!self.sidebar_collapsed)
                     .then(|| self.active_endpoint_workspace_at(point))
                     .flatten();
@@ -1941,6 +1957,12 @@ impl ClientShellState {
                 if super::contains(self.hits.global_launcher, point) {
                     self.toggle_global_menu();
                     outcome.repaint = true;
+                    return;
+                }
+                // Fork: the agent panel "+" opens a new tab running new_agent_command.
+                if super::contains(self.hits.new_agent, point) {
+                    let command = self.config.new_agent_command.clone();
+                    self.request_new_agent_tab(command, outcome);
                     return;
                 }
                 // Fork: a `button` label on a custom command draws a clickable chip.

@@ -4338,6 +4338,13 @@
         },
         "TabCreateParams": {
           "properties": {
+            "command": {
+              "description": "Fork: run this command in the new tab instead of a plain shell. It runs\nthrough the user's login+interactive shell, so rc-file PATH and aliases apply.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "cwd": {
               "type": [
                 "string",

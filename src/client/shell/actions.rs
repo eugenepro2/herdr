@@ -260,6 +260,36 @@ impl ClientShellState {
         }
     }
 
+    /// Fork: open a new tab in the focused space running `command`, used by the
+    /// agent panel "+" button and its right-click menu.
+    pub(super) fn request_new_agent_tab(
+        &mut self,
+        command: String,
+        outcome: &mut ClientShellInput,
+    ) {
+        if command.trim().is_empty() {
+            return;
+        }
+        let Some(workspace_id) = self
+            .snapshot
+            .as_deref()
+            .and_then(|snapshot| snapshot.focused_workspace_id.clone())
+        else {
+            return;
+        };
+        self.push_endpoint_method(
+            crate::api::schema::Method::TabCreate(crate::api::schema::TabCreateParams {
+                workspace_id: Some(workspace_id),
+                cwd: None,
+                focus: true,
+                label: None,
+                env: Default::default(),
+                command: Some(command),
+            }),
+            outcome,
+        );
+    }
+
     pub(super) fn request_selection_copy(&mut self, outcome: &mut ClientShellInput, live: bool) {
         let Some(selection) = self.selection.as_ref() else {
             return;
@@ -1078,6 +1108,7 @@ impl ClientShellState {
                     focus: true,
                     label: None,
                     env: Default::default(),
+                    command: None,
                 }))
             }
             KeybindAction::FocusPaneLeft

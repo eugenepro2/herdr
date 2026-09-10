@@ -80,6 +80,10 @@ pub(crate) struct ClientShellConfig {
     pub(super) spaces: SpacesSidebarConfig,
     pub(super) agents: crate::config::AgentsSidebarConfig,
     pub(super) agent_panel_sort: crate::config::AgentPanelSortConfig,
+    /// Fork: command the agent panel "+" button runs in a new tab. Empty hides it.
+    pub(super) new_agent_command: String,
+    /// Fork: right-click entries for that button. Empty means no menu.
+    pub(super) new_agent_menu: Vec<crate::config::NewAgentMenuEntry>,
     /// Fork: pin the focused space's branch and ahead/behind under the sidebar.
     pub(super) sidebar_git_footer: bool,
     /// Fork: animate the working indicator like the Claude Code spinner.
@@ -178,6 +182,8 @@ pub(super) struct ShellHitMap {
     pub(super) agent_scroll_metrics: Option<crate::pane::ScrollMetrics>,
     pub(super) agent_max_scroll: usize,
     pub(super) agent_sort_toggle: Rect,
+    /// Fork: the "+" button in the agent panel header.
+    pub(super) new_agent: Rect,
     pub(super) sidebar_divider: Rect,
     pub(super) sidebar_section_divider: Rect,
     pub(super) sidebar_toggle: Rect,
@@ -611,6 +617,8 @@ pub(super) enum ClientContextMenuAction {
     Zoom,
     ToggleRightClickPassthrough,
     ClosePane,
+    /// Fork: nth entry of `ui.new_agent_menu`.
+    NewAgentCommand(usize),
 }
 
 #[derive(Debug)]
@@ -633,6 +641,11 @@ pub(super) enum ClientContextMenuTarget {
         has_manual_label: bool,
         right_click_passthrough: bool,
     },
+    /// Fork: right click on the agent panel "+" button. The entries ride along so
+    /// the menu can be built without reaching back into the config.
+    NewAgent {
+        entries: Vec<crate::config::NewAgentMenuEntry>,
+    },
 }
 
 #[derive(Debug)]
@@ -644,7 +657,7 @@ pub(super) struct ClientContextMenuOverlay {
 }
 
 pub(super) struct ClientContextMenuItem {
-    pub(super) label: &'static str,
+    pub(super) label: String,
     pub(super) action: ClientContextMenuAction,
 }
 

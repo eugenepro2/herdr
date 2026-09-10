@@ -51,6 +51,7 @@ impl App {
             focus,
             label,
             env,
+            command,
         } = params;
         let ws_idx = if let Some(workspace_id) = workspace_id {
             let Some(ws_idx) = self.parse_workspace_id(&workspace_id) else {
@@ -74,13 +75,36 @@ impl App {
             Ok(env) => env,
             Err((code, message)) => return encode_error(id, &code, message),
         };
+        // Fork: `command` runs through the user's login+interactive shell so rc-file
+        // PATH and aliases apply; the bare server environment has neither.
+        let argv = command
+            .map(|command| command.trim().to_owned())
+            .filter(|command| !command.is_empty())
+            .map(|command| {
+                let shell = if default_shell.trim().is_empty() {
+                    std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_owned())
+                } else {
+                    default_shell.clone()
+                };
+                vec![shell, "-l".to_owned(), "-i".to_owned(), "-c".to_owned(), command]
+            });
         let result = self
             .state
             .workspaces
             .get_mut(ws_idx)
             .ok_or_else(|| std::io::Error::other("workspace disappeared"))
-            .and_then(|ws| {
-                ws.create_tab(
+            .and_then(|ws| match argv.as_deref() {
+                Some(argv) => ws.create_tab_argv_command(
+                    rows,
+                    cols,
+                    cwd,
+                    argv,
+                    extra_env,
+                    scrollback_limit_bytes,
+                    host_terminal_theme,
+                    host_terminal_appearance,
+                ),
+                None => ws.create_tab(
                     rows,
                     cols,
                     cwd,
@@ -89,7 +113,7 @@ impl App {
                     host_terminal_appearance,
                     crate::pane::PaneShellConfig::new(&default_shell, self.state.shell_mode),
                     extra_env,
-                )
+                ),
             });
         match result {
             Ok((tab_idx, terminal, runtime)) => {
@@ -459,6 +483,7 @@ mod tests {
                 focus: false,
                 label: None,
                 env: Default::default(),
+                command: None,
             },
         );
 

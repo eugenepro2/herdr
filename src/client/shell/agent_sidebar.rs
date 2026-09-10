@@ -148,6 +148,27 @@ pub(super) fn render_agent_panel_header(
     } else {
         Rect::default()
     };
+    // Fork: `ui.new_agent_command` adds a "+" that opens a new tab running it.
+    hits.new_agent = if config.mouse_capture && !config.new_agent_command.trim().is_empty() {
+        let rect = Rect::new(sort_rect.x.saturating_sub(2), sort_rect.y, 1, 1);
+        if rect.x > area.x {
+            put_text(
+                buffer,
+                rect.x,
+                rect.y,
+                1,
+                "+",
+                Style::default()
+                    .fg(config.palette.overlay1)
+                    .add_modifier(Modifier::BOLD),
+            );
+            rect
+        } else {
+            Rect::default()
+        }
+    } else {
+        Rect::default()
+    };
     put_text(
         buffer,
         sort_rect.x,

@@ -1346,3 +1346,63 @@ fn sidebar_agents_scope_active_lists_only_the_focused_space() {
         .collect::<Vec<_>>();
     assert_eq!(listed, vec!["pane_here"]);
 }
+
+#[test]
+fn new_agent_button_opens_a_tab_and_right_click_offers_the_menu() {
+    let mut config = Config::default();
+    config.ui.new_agent_command = "claude-cc".into();
+    config.ui.new_agent_menu = vec![
+        crate::config::NewAgentMenuEntry {
+            label: "claude".into(),
+            command: "claude-cc".into(),
+        },
+        crate::config::NewAgentMenuEntry {
+            label: "resume".into(),
+            command: "claude-cc -r".into(),
+        },
+    ];
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(snapshot()));
+    state.set_pane_surface(surface());
+    state.compose(120, 30).expect("composed with a new agent button");
+
+    let button = state.hits.new_agent;
+    assert!(button.width > 0, "the + button is drawn");
+
+    let outcome = state.handle_raw_events(vec![RawInputEvent::Mouse(MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: button.x,
+        row: button.y,
+        modifiers: KeyModifiers::empty(),
+    })]);
+    let traffic = format!("{:?}{:?}", outcome.requests, outcome.actions);
+    assert!(
+        traffic.contains("claude-cc"),
+        "the + button opens a tab running new_agent_command: {traffic}"
+    );
+
+    // Right click offers the configured entries and runs the one that is picked.
+    state.handle_raw_events(vec![RawInputEvent::Mouse(MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Right),
+        column: button.x,
+        row: button.y,
+        modifiers: KeyModifiers::empty(),
+    })]);
+    let Some(ClientShellOverlay::ContextMenu(menu)) = state.overlay.as_ref() else {
+        panic!("right click opens the new agent menu");
+    };
+    let labels = menu
+        .items()
+        .into_iter()
+        .map(|item| item.label)
+        .collect::<Vec<_>>();
+    assert_eq!(labels, vec!["claude".to_owned(), "resume".to_owned()]);
+
+    let mut picked = ClientShellInput::default();
+    state.activate_context_menu_item(1, &mut picked);
+    let traffic = format!("{:?}{:?}", picked.requests, picked.actions);
+    assert!(
+        traffic.contains("claude-cc -r"),
+        "picking an entry runs its command: {traffic}"
+    );
+}
