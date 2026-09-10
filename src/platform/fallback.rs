@@ -243,6 +243,16 @@ pub fn read_clipboard_image() -> Option<ClipboardImage> {
 }
 
 /// Unsupported platform stub.
+/// Fork (`[ui.toast] focus_on_click`): click actions are macOS-only; other
+/// platforms keep the plain notification.
+pub fn show_desktop_notification_with_action(
+    title: &str,
+    body: Option<&str>,
+    _execute: Option<&str>,
+) -> std::io::Result<bool> {
+    show_desktop_notification(title, body)
+}
+
 pub fn show_desktop_notification(_title: &str, _body: Option<&str>) -> std::io::Result<bool> {
     Ok(false)
 }

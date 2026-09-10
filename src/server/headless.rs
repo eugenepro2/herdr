@@ -60,7 +60,8 @@ use crate::server::clients::{
 };
 use crate::server::keybindings::{app_keybindings, apply_keybindings};
 use crate::server::notifications::{
-    should_forward_toast_to_clients, toast_message_from_state_change, toast_notify_kind,
+    server_shows_toast_locally, should_forward_toast_to_clients, toast_message_from_state_change,
+    toast_notify_kind,
 };
 use crate::server::pane_input::{
     apply_client_pane_input_events, apply_client_popup_input_events, apply_terminal_attach_input,
@@ -3137,14 +3138,14 @@ impl HeadlessServer {
         // show a terminal or system notification.
         let toast_after = self.app.state.toast.clone();
         let forwarded_toast_from_state = if should_forward_toast_to_clients(
-            self.app.state.toast_config.delivery,
+            &self.app.state.toast_config,
         ) && toast_after.is_some()
             && toast_after != toast_before
         {
             if let Some(toast) = &toast_after {
                 debug!(title = %toast.title, body = %toast.context, "forwarding toast notification from API request");
                 self.send_notify_to_foreground_client(
-                    toast_notify_kind(self.app.state.toast_config.delivery)
+                    toast_notify_kind(&self.app.state.toast_config)
                         .expect("toast forwarding requires a client notification kind"),
                     &toast.title,
                     non_empty_body(&toast.context),
@@ -3209,7 +3210,7 @@ impl HeadlessServer {
 
             if !forwarded_toast_from_state
                 && self.app.state.toast_config.delay_seconds == 0
-                && should_forward_toast_to_clients(self.app.state.toast_config.delivery)
+                && should_forward_toast_to_clients(&self.app.state.toast_config)
             {
                 if let Some(kind) =
                     crate::app::actions::notification_toast_for_state_change_with_agent_labels(
@@ -3243,7 +3244,7 @@ impl HeadlessServer {
                             *pane_id,
                         );
                         self.send_notify_to_foreground_client(
-                            toast_notify_kind(self.app.state.toast_config.delivery)
+                            toast_notify_kind(&self.app.state.toast_config)
                                 .expect("toast forwarding requires a client notification kind"),
                             format!("{agent_label} {event_text}"),
                             non_empty_body(&context),

@@ -563,6 +563,16 @@ fn bytes_match_image_signature(extension: &str, bytes: &[u8]) -> bool {
 }
 
 /// Show a native desktop notification through libnotify's command-line helper.
+/// Fork (`[ui.toast] focus_on_click`): click actions are macOS-only; other
+/// platforms keep the plain notification.
+pub fn show_desktop_notification_with_action(
+    title: &str,
+    body: Option<&str>,
+    _execute: Option<&str>,
+) -> std::io::Result<bool> {
+    show_desktop_notification(title, body)
+}
+
 pub fn show_desktop_notification(title: &str, body: Option<&str>) -> std::io::Result<bool> {
     show_desktop_notification_with_command(title, body, |program| Command::new(program))
 }

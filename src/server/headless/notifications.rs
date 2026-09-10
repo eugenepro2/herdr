@@ -168,7 +168,10 @@ impl HeadlessServer {
             }
         }
 
-        if !should_forward_toast_to_clients(self.app.state.toast_config.delivery) {
+        // Fork (`[ui.toast] focus_on_click`): the toast stays in the server process
+        // so it can carry a click action for the notifying pane.
+        let show_locally = server_shows_toast_locally(&self.app.state.toast_config);
+        if !should_forward_toast_to_clients(&self.app.state.toast_config) && !show_locally {
             return;
         }
         let Some(kind) = crate::app::actions::notification_toast_for_pane_state_update(
@@ -196,8 +199,17 @@ impl HeadlessServer {
             update.ws_idx,
             update.pane_id,
         );
+        if show_locally {
+            self.app.show_local_agent_toast(
+                update.ws_idx,
+                update.pane_id,
+                &format!("{agent_label} {event_text}"),
+                &context,
+            );
+            return;
+        }
         self.send_notify_to_foreground_client(
-            toast_notify_kind(self.app.state.toast_config.delivery)
+            toast_notify_kind(&self.app.state.toast_config)
                 .expect("toast forwarding requires a client notification kind"),
             format!("{agent_label} {event_text}"),
             non_empty_body(&context),
@@ -216,14 +228,34 @@ impl HeadlessServer {
             );
         }
 
-        if should_forward_toast_to_clients(self.app.state.toast_config.delivery) {
+        if should_forward_toast_to_clients(&self.app.state.toast_config) {
             if let Some(toast) = &delivery.client_notification {
                 self.send_notify_to_foreground_client(
-                    toast_notify_kind(self.app.state.toast_config.delivery)
+                    toast_notify_kind(&self.app.state.toast_config)
                         .expect("toast forwarding requires a client notification kind"),
                     &toast.title,
                     non_empty_body(&toast.context),
                 );
+            }
+        } else if server_shows_toast_locally(&self.app.state.toast_config) {
+            // Fork: without this the delayed toast was lost — `focus_on_click`
+            // keeps it off the client, and this path only ever forwarded, so the
+            // sound played and nothing appeared.
+            if let Some(toast) = &delivery.client_notification {
+                if let Some(ws_idx) = self
+                    .app
+                    .state
+                    .workspaces
+                    .iter()
+                    .position(|ws| ws.id == delivery.workspace_id)
+                {
+                    self.app.show_local_agent_toast(
+                        ws_idx,
+                        delivery.pane_id,
+                        &toast.title,
+                        &toast.context,
+                    );
+                }
             }
         }
     }
@@ -427,7 +459,7 @@ impl HeadlessServer {
 
                 let toast_msg = if !suppress_completion
                     && self.app.state.toast_config.delay_seconds == 0
-                    && should_forward_toast_to_clients(self.app.state.toast_config.delivery)
+                    && should_forward_toast_to_clients(&self.app.state.toast_config)
                 {
                     if self.app.state.toast.is_some() && self.app.state.toast != toast_before {
                         self.app
@@ -452,7 +484,7 @@ impl HeadlessServer {
 
                 if let Some(msg) = toast_msg {
                     self.send_flat_toast_to_foreground_client(
-                        toast_notify_kind(self.app.state.toast_config.delivery)
+                        toast_notify_kind(&self.app.state.toast_config)
                             .expect("toast forwarding requires a client notification kind"),
                         msg,
                     );
@@ -530,7 +562,7 @@ impl HeadlessServer {
 
                 let toast_msg = if !suppress_completion
                     && self.app.state.toast_config.delay_seconds == 0
-                    && should_forward_toast_to_clients(self.app.state.toast_config.delivery)
+                    && should_forward_toast_to_clients(&self.app.state.toast_config)
                 {
                     if self.app.state.toast.is_some() && self.app.state.toast != toast_before {
                         self.app
@@ -555,7 +587,7 @@ impl HeadlessServer {
 
                 if let Some(msg) = toast_msg {
                     self.send_flat_toast_to_foreground_client(
-                        toast_notify_kind(self.app.state.toast_config.delivery)
+                        toast_notify_kind(&self.app.state.toast_config)
                             .expect("toast forwarding requires a client notification kind"),
                         msg,
                     );
@@ -587,7 +619,7 @@ impl HeadlessServer {
                 ));
 
                 let toast_msg =
-                    if should_forward_toast_to_clients(self.app.state.toast_config.delivery) {
+                    if should_forward_toast_to_clients(&self.app.state.toast_config) {
                         if self.app.state.toast.is_some() && self.app.state.toast != toast_before {
                             self.app
                                 .state
@@ -606,7 +638,7 @@ impl HeadlessServer {
 
                 if let Some(msg) = toast_msg {
                     self.send_flat_toast_to_foreground_client(
-                        toast_notify_kind(self.app.state.toast_config.delivery)
+                        toast_notify_kind(&self.app.state.toast_config)
                             .expect("toast forwarding requires a client notification kind"),
                         msg,
                     );

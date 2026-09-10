@@ -6,12 +6,22 @@ use crate::layout::PaneId;
 use crate::protocol;
 use crate::terminal::TerminalRuntimeRegistry;
 
-pub(crate) fn should_forward_toast_to_clients(delivery: config::ToastDelivery) -> bool {
-    toast_notify_kind(delivery).is_some()
+pub(crate) fn should_forward_toast_to_clients(toast: &config::ToastConfig) -> bool {
+    toast_notify_kind(toast).is_some()
 }
 
-pub(crate) fn toast_notify_kind(delivery: config::ToastDelivery) -> Option<protocol::NotifyKind> {
-    match delivery {
+/// Fork (`[ui.toast] focus_on_click`): the server shows the system toast itself
+/// instead of forwarding it. Only the server knows which pane raised it, so only
+/// there can the notification carry a click action that focuses that pane.
+pub(crate) fn server_shows_toast_locally(toast: &config::ToastConfig) -> bool {
+    toast.focus_on_click && matches!(toast.delivery, config::ToastDelivery::System)
+}
+
+pub(crate) fn toast_notify_kind(toast: &config::ToastConfig) -> Option<protocol::NotifyKind> {
+    if server_shows_toast_locally(toast) {
+        return None;
+    }
+    match toast.delivery {
         config::ToastDelivery::Terminal => Some(protocol::NotifyKind::Toast),
         config::ToastDelivery::System => Some(protocol::NotifyKind::SystemToast),
         config::ToastDelivery::Off | config::ToastDelivery::Herdr => None,
@@ -66,12 +76,33 @@ fn toast_event_text(kind: app::state::ToastKind) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(unix)]
     use super::*;
     #[cfg(unix)]
     use crate::detect::Agent;
     #[cfg(unix)]
     use crate::terminal::TerminalState;
+
+    #[test]
+    fn focus_on_click_keeps_system_toasts_on_the_server() {
+        let mut toast = config::ToastConfig {
+            delivery: config::ToastDelivery::System,
+            ..Default::default()
+        };
+        assert_eq!(
+            toast_notify_kind(&toast),
+            Some(protocol::NotifyKind::SystemToast)
+        );
+
+        toast.focus_on_click = true;
+        assert_eq!(toast_notify_kind(&toast), None);
+        assert!(!should_forward_toast_to_clients(&toast));
+        assert!(server_shows_toast_locally(&toast));
+
+        // Only system delivery moves into the server; the rest is untouched.
+        toast.delivery = config::ToastDelivery::Terminal;
+        assert_eq!(toast_notify_kind(&toast), Some(protocol::NotifyKind::Toast));
+        assert!(!server_shows_toast_locally(&toast));
+    }
 
     #[cfg(unix)]
     fn init_repo(path: &std::path::Path) {

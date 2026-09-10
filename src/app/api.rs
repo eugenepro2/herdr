@@ -760,6 +760,50 @@ impl App {
         }
     }
 
+    /// Fork (`[ui.toast] focus_on_click`): shell command that focuses the
+    /// notifying pane, run by the desktop notification when it is clicked.
+    pub(crate) fn notification_focus_action(
+        &self,
+        ws_idx: usize,
+        pane_id: crate::layout::PaneId,
+    ) -> Option<String> {
+        let ws = self.state.workspaces.get(ws_idx)?;
+        let tab_idx = ws.find_tab_index_for_pane(pane_id)?;
+        let tab_id = self.public_tab_id(ws_idx, tab_idx)?;
+        let public_pane_id = self.public_pane_id(ws_idx, pane_id)?;
+        let exe = std::env::current_exe().ok()?;
+        let exe = format!("'{}'", exe.display().to_string().replace('\'', "'\\''"));
+        // `pane focus` needs a direction; `agent focus` takes the pane id itself.
+        Some(format!(
+            "{exe} workspace focus {ws} && {exe} tab focus {tab_id} && {exe} agent focus {public_pane_id}",
+            ws = ws.id
+        ))
+    }
+
+    /// Fork (`[ui.toast] focus_on_click`): show the system toast from the server
+    /// process. Only the server knows which pane raised it, so only here can the
+    /// notification carry a click action that focuses that pane.
+    pub(crate) fn show_local_agent_toast(
+        &self,
+        ws_idx: usize,
+        pane_id: crate::layout::PaneId,
+        title: &str,
+        context: &str,
+    ) {
+        let action = self.notification_focus_action(ws_idx, pane_id);
+        let (title, body) = self.desktop_notification_text(ws_idx, pane_id, title, context);
+        if cfg!(test) {
+            // Tests exercise the text and the click action, never the desktop
+            // notification service.
+            return;
+        }
+        let _ = crate::platform::show_desktop_notification_with_action(
+            &title,
+            Some(&body),
+            action.as_deref(),
+        );
+    }
+
     pub(crate) fn refresh_agent_notification_delivery_contexts(
         &mut self,
         deliveries: &mut [crate::app::state::AgentNotificationDelivery],
@@ -2578,5 +2622,30 @@ mod tests {
                 "solo · 4".to_string()
             )
         );
+    }
+    #[test]
+    fn notification_focus_action_focuses_the_pane_by_id() {
+        let (_api_tx, api_rx) = tokio::sync::mpsc::unbounded_channel();
+        let mut app = App::new(
+            &crate::config::Config::default(),
+            crate::app::AppPolicy::TEST,
+            None,
+            api_rx,
+            crate::api::EventHub::default(),
+        );
+        let workspace = crate::workspace::Workspace::test_new("solo");
+        let pane_id = workspace.tabs[0].root_pane;
+        app.state.workspaces = vec![workspace];
+        app.state.ensure_test_terminals();
+
+        let action = app
+            .notification_focus_action(0, pane_id)
+            .expect("focus action");
+
+        assert!(action.contains("workspace focus"), "{action}");
+        assert!(action.contains("tab focus"), "{action}");
+        // `pane focus` requires a direction and would fail from a notification.
+        assert!(action.contains("agent focus"), "{action}");
+        assert!(!action.contains("pane focus"), "{action}");
     }
 }

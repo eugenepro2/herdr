@@ -590,6 +590,35 @@ pub fn show_desktop_notification(title: &str, body: Option<&str>) -> std::io::Re
     show_desktop_notification_with_command(title, body, |program| Command::new(program))
 }
 
+/// Fork (`[ui.toast] focus_on_click`): like `show_desktop_notification`, but the
+/// shell command `execute` runs when the notification is clicked, so the toast
+/// can focus the pane that raised it.
+pub fn show_desktop_notification_with_action(
+    title: &str,
+    body: Option<&str>,
+    execute: Option<&str>,
+) -> std::io::Result<bool> {
+    let mut command = |program: &str| Command::new(program);
+    let activate_bundle_id = verified_terminal_bundle_identifier(&mut command);
+    // The server is launched from a GUI terminal and runs with a bare PATH, so
+    // try the usual Homebrew locations before giving up on terminal-notifier.
+    for program in [
+        "terminal-notifier",
+        "/opt/homebrew/bin/terminal-notifier",
+        "/usr/local/bin/terminal-notifier",
+    ] {
+        let mut cmd = command(program);
+        build_terminal_notifier_command(&mut cmd, title, body, activate_bundle_id.as_deref());
+        if let Some(execute) = execute {
+            cmd.arg("-execute").arg(execute);
+        }
+        if run_notification_command(cmd).unwrap_or(false) {
+            return Ok(true);
+        }
+    }
+    show_osascript_notification(title, body, &mut command)
+}
+
 fn show_desktop_notification_with_command(
     title: &str,
     body: Option<&str>,
