@@ -94,7 +94,7 @@ pub(super) fn render_workspace_bar(
             rect.x.saturating_add(1),
             rect.y,
             rect.width.saturating_sub(1),
-            status_icon(workspace.agent_status, config.status_indicators),
+            status_icon_anim(workspace.agent_status, config.status_indicators, config.working_anim_frame),
             icon_style,
         );
         put_text(

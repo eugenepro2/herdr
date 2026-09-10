@@ -428,6 +428,7 @@ pub(super) fn render_expanded(
                     workspace,
                     status,
                     config.status_indicators,
+                    config.working_anim_frame,
                     entry,
                     tokens,
                     endpoint_active,

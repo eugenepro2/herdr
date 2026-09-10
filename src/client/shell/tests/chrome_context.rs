@@ -466,3 +466,80 @@ fn workspace_bar_takes_the_top_row_and_switches_spaces_on_click() {
         "clicking a strip cell asks the endpoint to focus that workspace: {traffic}"
     );
 }
+
+#[test]
+fn working_status_animation_only_runs_while_enabled_and_an_agent_works() {
+    let mut base = snapshot();
+    base.agents = vec![ClientShellAgent {
+        pane_id: "pane_1".into(),
+        workspace_id: "ws_1".into(),
+        tab_id: "tab_1".into(),
+        name: None,
+        display_agent: None,
+        agent: None,
+        title: None,
+        terminal_title: None,
+        terminal_title_stripped: None,
+        agent_status: AgentStatus::Working,
+        state_change_seq: 0,
+        state_labels: Vec::new(),
+        tokens: Vec::new(),
+        focused: false,
+    }];
+
+    let now = std::time::Instant::now();
+
+    // Off by config: no frames, no deadline, even with a working agent.
+    let mut off = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    off.set_snapshot(Box::new(base.clone()));
+    assert!(!off.tick_working_animation(now));
+    assert_eq!(off.next_working_anim_tick, None);
+
+    let mut config = Config::default();
+    config.ui.status_indicator_animation = true;
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+
+    // Enabled, but nothing is working.
+    let mut resting = base.clone();
+    resting.agents[0].agent_status = AgentStatus::Idle;
+    state.set_snapshot(Box::new(resting));
+    assert!(!state.tick_working_animation(now));
+    assert_eq!(state.next_working_anim_tick, None);
+
+    // First tick arms the next frame without skipping a step.
+    state.set_snapshot(Box::new(base.clone()));
+    assert!(state.tick_working_animation(now));
+    assert_eq!(state.working_anim_frame, 0);
+    let deadline = state.next_working_anim_tick.expect("armed");
+
+    assert!(!state.tick_working_animation(deadline - std::time::Duration::from_millis(1)));
+    assert_eq!(state.working_anim_frame, 0);
+    assert!(state.tick_working_animation(deadline));
+    assert_eq!(state.working_anim_frame, 1);
+
+    // The strip and sidebar draw the spinner frame, not the resting glyph.
+    state.set_pane_surface(surface());
+    let mut with_bar = Config::default();
+    with_bar.ui.status_indicator_animation = true;
+    with_bar.ui.workspace_bar = true;
+    let mut bar_state = ClientShellState::new(ClientShellConfig::from_config(&with_bar));
+    bar_state.set_snapshot(Box::new(base.clone()));
+    bar_state.set_pane_surface(surface());
+    bar_state.tick_working_animation(now);
+    bar_state.working_anim_frame = 2;
+    bar_state.tick_working_animation(now + std::time::Duration::from_secs(1));
+    let frame = bar_state.compose(80, 20).expect("composed while working");
+    let top_row = frame.cells[..80]
+        .iter()
+        .map(|cell| cell.symbol.as_str())
+        .collect::<String>();
+    assert!(top_row.contains('\u{2217}'), "top row: {top_row:?}");
+
+    // Work stops: the animation disarms itself.
+    let mut stopped = base;
+    stopped.agents[0].agent_status = AgentStatus::Idle;
+    state.set_snapshot(Box::new(stopped));
+    assert!(!state.tick_working_animation(deadline + std::time::Duration::from_secs(1)));
+    assert_eq!(state.next_working_anim_tick, None);
+    assert_eq!(state.config.working_anim_frame, None);
+}

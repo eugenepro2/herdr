@@ -80,6 +80,12 @@ pub(crate) struct ClientShellConfig {
     pub(super) spaces: SpacesSidebarConfig,
     pub(super) agents: crate::config::AgentsSidebarConfig,
     pub(super) agent_panel_sort: crate::config::AgentPanelSortConfig,
+    /// Fork: animate the working indicator like the Claude Code spinner.
+    pub(super) status_indicator_animation: bool,
+    /// Fork: spinner frame for this compose, `None` while nothing is working.
+    /// Render state rather than configuration; it rides here because every
+    /// renderer already receives this struct.
+    pub(super) working_anim_frame: Option<u8>,
     /// Fork: list every space's agents, or only the focused space's.
     pub(super) sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig,
     pub(super) status_indicators: crate::config::StatusIndicatorStyle,
@@ -968,6 +974,9 @@ pub(crate) struct ClientShellState {
     pub(super) pane_scroll_targets: HashMap<String, usize>,
     pub(super) copy_feedback: Option<crate::app::state::CopyFeedback>,
     pub(super) copy_feedback_deadline: Option<std::time::Instant>,
+    /// Fork: current spinner frame, advanced only while an agent works.
+    pub(super) working_anim_frame: u8,
+    pub(super) next_working_anim_tick: Option<std::time::Instant>,
     pub(super) host_mouse_pixels: Option<crate::input::mouse::HostPixels>,
     pub(super) input_leases: ClientInputLeases,
     pub(super) popup_pending: bool,
@@ -1123,6 +1132,8 @@ impl ClientShellState {
             pane_scroll_targets: HashMap::new(),
             copy_feedback: None,
             copy_feedback_deadline: None,
+            working_anim_frame: 0,
+            next_working_anim_tick: None,
             host_mouse_pixels: None,
             input_leases: ClientInputLeases::default(),
             popup_pending: false,
@@ -1836,9 +1847,49 @@ impl ClientShellState {
 
     pub(crate) fn timer_delay(&self, now: std::time::Instant) -> std::time::Duration {
         let default = std::time::Duration::from_millis(100);
+        let default = self
+            .next_working_anim_tick
+            .map(|deadline| deadline.saturating_duration_since(now).min(default))
+            .unwrap_or(default);
         self.selection_autoscroll_deadline
             .map(|deadline| deadline.saturating_duration_since(now).min(default))
             .unwrap_or(default)
+    }
+
+    fn any_agent_working(&self) -> bool {
+        self.snapshot.as_deref().is_some_and(|snapshot| {
+            snapshot
+                .agents
+                .iter()
+                .any(|agent| agent.agent_status == crate::api::schema::AgentStatus::Working)
+        })
+    }
+
+    /// Fork: advances the working-state spinner when due. Returns whether the
+    /// view changed. Stays completely idle while nothing is working.
+    pub(crate) fn tick_working_animation(&mut self, now: std::time::Instant) -> bool {
+        if !self.config.status_indicator_animation || !self.any_agent_working() {
+            self.next_working_anim_tick = None;
+            self.config.working_anim_frame = None;
+            return false;
+        }
+        if self
+            .next_working_anim_tick
+            .is_some_and(|deadline| now < deadline)
+        {
+            return false;
+        }
+        let started = self.next_working_anim_tick.is_none();
+        self.next_working_anim_tick = Some(now + WORKING_ANIM_INTERVAL);
+        if started {
+            // First working agent this cycle: arm the next frame, but keep the
+            // current one so an unrelated render does not skip a step.
+            self.config.working_anim_frame = Some(self.working_anim_frame);
+            return true;
+        }
+        self.working_anim_frame = self.working_anim_frame.wrapping_add(1);
+        self.config.working_anim_frame = Some(self.working_anim_frame);
+        true
     }
 
     pub(crate) fn invalidate_pane_surface(&mut self) {

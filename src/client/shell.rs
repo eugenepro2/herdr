@@ -193,6 +193,30 @@ fn pane_surface_topology_signature(surface: &PaneSurfaceFrame) -> u64 {
     hash
 }
 
+/// Fork: how often the working-state spinner advances.
+const WORKING_ANIM_INTERVAL: std::time::Duration = std::time::Duration::from_millis(120);
+
+/// Fork: frames of the working-state animation, mirroring the Claude Code
+/// spinner. Every frame is one cell wide.
+const WORKING_ANIM_FRAMES: [&str; 6] = [
+    "\u{b7}", "\u{2722}", "\u{2733}", "\u{2217}", "\u{273b}", "\u{273d}",
+];
+
+/// Fork: the spinner frame replaces the working glyph while
+/// `ui.status_indicator_animation` is on; every other state keeps its glyph.
+fn status_icon_anim(
+    status: crate::api::schema::AgentStatus,
+    style: crate::config::StatusIndicatorStyle,
+    frame: Option<u8>,
+) -> &'static str {
+    match (status, frame) {
+        (crate::api::schema::AgentStatus::Working, Some(frame)) => {
+            WORKING_ANIM_FRAMES[usize::from(frame) % WORKING_ANIM_FRAMES.len()]
+        }
+        _ => status_icon(status, style),
+    }
+}
+
 fn status_icon(
     status: crate::api::schema::AgentStatus,
     style: crate::config::StatusIndicatorStyle,

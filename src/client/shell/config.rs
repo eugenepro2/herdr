@@ -124,6 +124,8 @@ impl ClientShellConfig {
             spaces: config.ui.sidebar.spaces.clone(),
             agents: config.ui.sidebar.agents.clone(),
             agent_panel_sort: config.ui.agent_panel_sort,
+            status_indicator_animation: config.ui.status_indicator_animation,
+            working_anim_frame: None,
             sidebar_agents_scope: config.ui.sidebar_agents_scope,
             status_indicators: config.ui.status_indicators,
             workspace_bar: config.ui.workspace_bar,
