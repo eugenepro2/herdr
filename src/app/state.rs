@@ -852,6 +852,8 @@ pub struct AppState {
     pub shell_mode: crate::config::ShellModeConfig,
     /// Fork: follow plain-text file paths in pane output as `file://` links.
     pub pane_file_links: bool,
+    /// Fork: underline in pane output what a ctrl+click would follow.
+    pub pane_link_highlight: bool,
     pub new_terminal_cwd: NewTerminalCwdConfig,
     pub pane_scrollback_limit_bytes: usize,
     pub sound: SoundConfig,
@@ -1023,6 +1025,7 @@ impl AppState {
     pub fn test_new() -> Self {
         Self {
             pane_file_links: false,
+            pane_link_highlight: false,
             terminals: std::collections::HashMap::new(),
             direct_attach_resize_locks: std::collections::HashSet::new(),
             pane_id_aliases: std::collections::HashMap::new(),

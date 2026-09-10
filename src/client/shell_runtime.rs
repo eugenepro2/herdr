@@ -47,6 +47,13 @@ pub(super) fn dispatch_client_shell_actions(
                     }
                 }
             }
+            shell::ClientShellAction::OpenLocalFolder(url) => {
+                match crate::platform::open_url(&url) {
+                    Ok(Some(child)) => detached_process_children.push(child),
+                    Ok(None) => {}
+                    Err(err) => warn!(err = %err, url = %url, "failed to reveal pane file folder"),
+                }
+            }
             shell::ClientShellAction::ReplayMouse(events) => replay_mouse.extend(events),
             shell::ClientShellAction::Keybind(action) => {
                 debug!(

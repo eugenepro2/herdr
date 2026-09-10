@@ -2749,6 +2749,10 @@
             "pane_id": {
               "type": "string"
             },
+            "reveal_dir": {
+              "description": "Fork: resolve the link, then answer with the folder that contains it\ninstead of the link itself, and do not offer it to plugin handlers — the\nplugin would preview the file, and alt+click asks for its folder.",
+              "type": "boolean"
+            },
             "viewport_row": {
               "format": "uint16",
               "maximum": 65535,

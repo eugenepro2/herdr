@@ -15,7 +15,7 @@ mod api_helpers;
 pub(crate) use api_helpers::limit_snapshot_lines;
 mod creation;
 mod custom_commands;
-mod file_links;
+pub(crate) mod file_links;
 mod git_refresh;
 mod ids;
 pub(crate) mod pane_graphics;
@@ -502,6 +502,7 @@ impl App {
             default_shell: config.terminal.default_shell.clone(),
             shell_mode: config.terminal.shell_mode,
             pane_file_links: config.ui.pane_file_links,
+            pane_link_highlight: config.ui.pane_link_highlight,
             new_terminal_cwd: config.terminal.new_cwd.clone(),
             pane_scrollback_limit_bytes: config.advanced.scrollback_limit_bytes,
             sound: config.ui.sound.clone(),
@@ -927,6 +928,7 @@ impl App {
             self.state.default_shell = config.terminal.default_shell.clone();
             self.state.shell_mode = config.terminal.shell_mode;
             self.state.pane_file_links = config.ui.pane_file_links;
+            self.state.pane_link_highlight = config.ui.pane_link_highlight;
             self.state.new_terminal_cwd = config.terminal.new_cwd.clone();
         }
 

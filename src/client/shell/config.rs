@@ -124,6 +124,7 @@ impl ClientShellConfig {
             spaces: config.ui.sidebar.spaces.clone(),
             agents: config.ui.sidebar.agents.clone(),
             agent_panel_sort: config.ui.agent_panel_sort,
+            pane_file_links: config.ui.pane_file_links,
             sidebar_divider: config.ui.sidebar_divider,
             tab_bar_contrast: config.ui.tab_bar_contrast,
             sidebar_agent_close_button: config.ui.sidebar_agent_close_button,

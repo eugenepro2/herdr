@@ -790,6 +790,15 @@ impl ClientShellState {
                         self.url_click_consumes_until_up = completed_before_release;
                         (false, vec![ClientShellAction::OpenSafeWebUrl(url)])
                     }
+                    // Fork: a folder from alt+click is revealed by this machine's
+                    // file manager, so only a local endpoint's path means anything.
+                    Ok(crate::api::schema::ResponseResult::PaneLinkActivated {
+                        url: Some(url),
+                        handled: false,
+                    }) if url.starts_with("file://") && self.active_endpoint_id.is_local() => {
+                        self.url_click_consumes_until_up = completed_before_release;
+                        (false, vec![ClientShellAction::OpenLocalFolder(url)])
+                    }
                     Ok(crate::api::schema::ResponseResult::PaneLinkActivated { .. }) => {
                         (false, replay_action(replay))
                     }

@@ -877,10 +877,18 @@ impl ClientShellState {
             && self.overlay.is_none()
             && self.mode == ClientShellMode::Terminal
             && mouse.kind == MouseEventKind::Down(MouseButton::Left)
-            && mouse
+            && (mouse
                 .modifiers
                 .contains(crossterm::event::KeyModifiers::CONTROL)
+                // Fork: alt+click follows the same lookup but asks for the folder.
+                // Without file links there is nothing to reveal, so alt+click
+                // stays the pane application's own event.
+                || (self.config.pane_file_links
+                    && mouse.modifiers.contains(crossterm::event::KeyModifiers::ALT)))
         {
+            let reveal_dir = !mouse
+                .modifiers
+                .contains(crossterm::event::KeyModifiers::CONTROL);
             if let Some(hit) = self
                 .hits
                 .panes
@@ -912,6 +920,7 @@ impl ClientShellState {
                             offset_from_bottom: hit
                                 .scroll
                                 .map(|metrics| metrics.offset_from_bottom as u64),
+                            reveal_dir,
                         },
                     ),
                     PendingEndpointKind::PaneLinkActivate {

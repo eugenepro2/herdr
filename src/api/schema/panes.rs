@@ -57,6 +57,11 @@ pub struct PaneLinkActivateParams {
     pub content_revision: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub offset_from_bottom: Option<u64>,
+    /// Fork: resolve the link, then answer with the folder that contains it
+    /// instead of the link itself, and do not offer it to plugin handlers — the
+    /// plugin would preview the file, and alt+click asks for its folder.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub reveal_dir: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]

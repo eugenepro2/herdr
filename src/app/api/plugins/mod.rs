@@ -316,6 +316,20 @@ impl App {
                 "pane content or viewport changed during link activation",
             );
         }
+        // Fork: alt+click asks for the folder holding the file, opened by the
+        // system rather than by a plugin.
+        if params.reveal_dir {
+            let dir = url
+                .as_deref()
+                .and_then(crate::app::file_links::parent_dir_url);
+            return encode_success(
+                id,
+                ResponseResult::PaneLinkActivated {
+                    url: dir,
+                    handled: false,
+                },
+            );
+        }
         let handled = match url.as_deref() {
             Some(url) => match self.invoke_plugin_link_handler_for_url(url, pane_id) {
                 Ok(handled) => handled,

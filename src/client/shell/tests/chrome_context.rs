@@ -683,3 +683,45 @@ fn sidebar_divider_reserves_a_gutter_and_tab_contrast_tints_the_row() {
         .bg;
     assert_ne!(tab_bg, plain_bg);
 }
+
+#[test]
+fn alt_click_in_a_pane_asks_for_the_folder_and_ctrl_click_does_not() {
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    state.set_snapshot(Box::new(snapshot()));
+    state.set_pane_surface(surface());
+    state.compose(120, 30).expect("composed with a pane");
+    let inner = state.hits.panes.first().expect("pane hit").inner_rect;
+
+    let click = |state: &mut ClientShellState, modifiers| {
+        state.handle_raw_events(vec![RawInputEvent::Mouse(MouseEvent {
+            kind: MouseEventKind::Down(MouseButton::Left),
+            column: inner.x,
+            row: inner.y,
+            modifiers,
+        })])
+    };
+
+    let ctrl = click(&mut state, KeyModifiers::CONTROL);
+    let traffic = format!("{:?}{:?}", ctrl.requests, ctrl.actions);
+    assert!(
+        traffic.contains("PaneLinkActivate") || traffic.contains("pane.link_activate"),
+        "ctrl+click asks the endpoint to resolve the link: {traffic}"
+    );
+    assert!(
+        traffic.contains("reveal_dir: false"),
+        "ctrl+click follows the link itself: {traffic}"
+    );
+
+    let mut with_links = Config::default();
+    with_links.ui.pane_file_links = true;
+    let mut alt_state = ClientShellState::new(ClientShellConfig::from_config(&with_links));
+    alt_state.set_snapshot(Box::new(snapshot()));
+    alt_state.set_pane_surface(surface());
+    alt_state.compose(120, 30).expect("composed with a pane");
+    let alt = click(&mut alt_state, KeyModifiers::ALT);
+    let traffic = format!("{:?}{:?}", alt.requests, alt.actions);
+    assert!(
+        traffic.contains("reveal_dir: true"),
+        "alt+click asks for the folder holding the file: {traffic}"
+    );
+}

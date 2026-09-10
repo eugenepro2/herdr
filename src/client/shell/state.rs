@@ -80,6 +80,9 @@ pub(crate) struct ClientShellConfig {
     pub(super) spaces: SpacesSidebarConfig,
     pub(super) agents: crate::config::AgentsSidebarConfig,
     pub(super) agent_panel_sort: crate::config::AgentPanelSortConfig,
+    /// Fork: alt+click a plain-text file path to reveal its folder. Without file
+    /// links there is nothing to reveal, so alt+click stays the pane's own.
+    pub(super) pane_file_links: bool,
     /// Fork: reserve a gutter column beside the sidebar and rule it.
     pub(super) sidebar_divider: bool,
     /// Fork: tint the tab row apart from the workspace strip.
@@ -350,6 +353,8 @@ pub(crate) enum ClientShellAction {
     },
     ClipboardWrite(Vec<u8>),
     OpenSafeWebUrl(String),
+    /// Fork: alt+click resolved to a folder on this machine; reveal it.
+    OpenLocalFolder(String),
     ActivateEndpoint {
         endpoint_id: ClientEndpointId,
         target: Option<ClientEndpointFocusTarget>,

@@ -352,6 +352,7 @@ mod tests {
                 col: 0,
                 content_revision: None,
                 offset_from_bottom: None,
+                reveal_dir: false,
             },
         )));
         assert!(!supports_client_shell_method(&Method::Ping(
