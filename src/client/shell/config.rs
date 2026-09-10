@@ -124,6 +124,7 @@ impl ClientShellConfig {
             spaces: config.ui.sidebar.spaces.clone(),
             agents: config.ui.sidebar.agents.clone(),
             agent_panel_sort: config.ui.agent_panel_sort,
+            drag_reorder: config.ui.drag_reorder,
             toast_focus_on_click: config.ui.toast.focus_on_click,
             pane_file_links: config.ui.pane_file_links,
             pane_link_highlight: config.ui.pane_link_highlight,

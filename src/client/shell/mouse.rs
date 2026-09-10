@@ -404,6 +404,46 @@ impl ClientShellState {
         ((pointer + grab_offset - origin) as f32 / f32::from(length.max(1))).clamp(0.1, 0.9)
     }
 
+    /// Fork: a pressed agent row, when `ui.drag_reorder` lets it become a drag.
+    fn agent_press_for(&self, pane_id: &str, mouse: MouseEvent) -> Option<ClientAgentPress> {
+        if !self.config.drag_reorder {
+            return None;
+        }
+        let snapshot = self.snapshot.as_deref()?;
+        let agent = snapshot
+            .agents
+            .iter()
+            .find(|agent| agent.pane_id == pane_id)?;
+        Some(ClientAgentPress {
+            pane_id: agent.pane_id.clone(),
+            tab_id: agent.tab_id.clone(),
+            workspace_id: agent.workspace_id.clone(),
+            start_column: mouse.column,
+            start_row: mouse.row,
+        })
+    }
+
+    /// Fork: where a dragged agent row would land, as an index among its own
+    /// space's tabs — an agent lives in a tab, so reordering it moves that tab.
+    fn agent_drop_index_at(&self, point: (u16, u16), workspace_id: &str) -> Option<usize> {
+        let snapshot = self.snapshot.as_deref()?;
+        let target_pane = self
+            .hits
+            .agents
+            .iter()
+            .find(|(rect, _)| super::contains(*rect, point))
+            .map(|(_, pane_id)| pane_id.as_str())?;
+        let target_tab = snapshot
+            .agents
+            .iter()
+            .find(|agent| agent.pane_id == target_pane && agent.workspace_id == workspace_id)?;
+        snapshot
+            .tabs
+            .iter()
+            .filter(|tab| tab.workspace_id == workspace_id)
+            .position(|tab| tab.tab_id == target_tab.tab_id)
+    }
+
     fn tab_drop_index_at(&self, point: (u16, u16)) -> Option<usize> {
         let snapshot = self.snapshot.as_deref()?;
         let workspace_id = snapshot.focused_workspace_id.as_deref()?;
@@ -1181,6 +1221,22 @@ impl ClientShellState {
                     outcome.repaint = true;
                     return;
                 }
+                Some(ClientChromeDrag::Agent { .. }) => {
+                    let workspace_id = match self.chrome_drag.as_ref() {
+                        Some(ClientChromeDrag::Agent { workspace_id, .. }) => workspace_id.clone(),
+                        _ => String::new(),
+                    };
+                    let insert_index = self.agent_drop_index_at(point, &workspace_id);
+                    if let Some(ClientChromeDrag::Agent {
+                        insert_index: current,
+                        ..
+                    }) = self.chrome_drag.as_mut()
+                    {
+                        *current = insert_index;
+                    }
+                    outcome.repaint = true;
+                    return;
+                }
                 Some(ClientChromeDrag::Workspace { .. }) => {
                     let target = self.workspace_drop_target_at(point);
                     if let Some(ClientChromeDrag::Workspace {
@@ -1231,12 +1287,55 @@ impl ClientShellState {
                 }
                 return;
             }
+            if let Some(press) = self.agent_press.as_ref() {
+                let delta = mouse
+                    .column
+                    .abs_diff(press.start_column)
+                    .max(mouse.row.abs_diff(press.start_row));
+                if delta >= 1 {
+                    let tab_id = press.tab_id.clone();
+                    let workspace_id = press.workspace_id.clone();
+                    if let Some(insert_index) = self.agent_drop_index_at(point, &workspace_id) {
+                        self.chrome_drag = Some(ClientChromeDrag::Agent {
+                            tab_id,
+                            workspace_id,
+                            insert_index: Some(insert_index),
+                        });
+                        outcome.repaint = true;
+                    }
+                }
+                return;
+            }
         }
         if mouse.kind == MouseEventKind::Up(MouseButton::Left) {
             if let Some(drag) = self.chrome_drag.take() {
                 self.workspace_press = None;
                 self.tab_press = None;
+                self.agent_press = None;
                 match drag {
+                    ClientChromeDrag::Agent {
+                        tab_id,
+                        workspace_id,
+                        insert_index,
+                    } => {
+                        let valid_drop = self.snapshot.as_deref().is_some_and(|snapshot| {
+                            snapshot.tabs.iter().any(|tab| {
+                                tab.tab_id == tab_id && tab.workspace_id == workspace_id
+                            })
+                        });
+                        if let (true, Some(insert_index)) = (valid_drop, insert_index) {
+                            self.push_endpoint_method(
+                                crate::api::schema::Method::TabMove(
+                                    crate::api::schema::TabMoveParams {
+                                        tab_id,
+                                        insert_index,
+                                    },
+                                ),
+                                outcome,
+                            );
+                        }
+                        outcome.repaint = true;
+                    }
                     ClientChromeDrag::Tab {
                         tab_id,
                         workspace_id,
@@ -1346,6 +1445,7 @@ impl ClientShellState {
                 return;
             }
             if let Some(press) = self.workspace_press.take() {
+                self.agent_press = None;
                 self.finish_endpoint_workspace_press(press, outcome);
                 return;
             }
@@ -1353,6 +1453,15 @@ impl ClientShellState {
                 self.push_endpoint_method(
                     crate::api::schema::Method::TabFocus(crate::api::schema::TabTarget {
                         tab_id: press.tab_id,
+                    }),
+                    outcome,
+                );
+                return;
+            }
+            if let Some(press) = self.agent_press.take() {
+                self.push_endpoint_method(
+                    crate::api::schema::Method::PaneFocus(crate::api::schema::PaneTarget {
+                        pane_id: press.pane_id,
                     }),
                     outcome,
                 );
@@ -2200,6 +2309,12 @@ impl ClientShellState {
                     .find(|(rect, _)| super::contains(*rect, point))
                     .map(|(_, pane_id)| pane_id.clone());
                 if let Some(pane_id) = agent_pane_id {
+                    // Fork: `ui.drag_reorder` holds the press so the row can become a
+                    // drag; a press that never moves still focuses on release.
+                    if let Some(press) = self.agent_press_for(&pane_id, mouse) {
+                        self.agent_press = Some(press);
+                        return;
+                    }
                     self.push_endpoint_method(
                         crate::api::schema::Method::PaneFocus(crate::api::schema::PaneTarget {
                             pane_id,

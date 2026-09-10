@@ -97,6 +97,8 @@ pub(crate) struct ClientShellConfig {
     pub(super) new_agent_menu: Vec<crate::config::NewAgentMenuEntry>,
     /// Fork: pin the focused space's branch and ahead/behind under the sidebar.
     pub(super) sidebar_git_footer: bool,
+    /// Fork: drag a sidebar agent row to reorder it.
+    pub(super) drag_reorder: bool,
     /// Fork: the endpoint raises the system toast itself so a click can focus the
     /// pane that asked; the client must not raise a second one.
     pub(super) toast_focus_on_click: bool,
@@ -296,7 +298,22 @@ pub(super) struct ClientTabPress {
     pub(super) start_row: u16,
 }
 
+/// Fork: a pressed sidebar agent row, waiting to become a drag.
+pub(super) struct ClientAgentPress {
+    pub(super) pane_id: String,
+    pub(super) tab_id: String,
+    pub(super) workspace_id: String,
+    pub(super) start_column: u16,
+    pub(super) start_row: u16,
+}
+
 pub(super) enum ClientChromeDrag {
+    /// Fork: dragging a sidebar agent row moves the tab it lives in.
+    Agent {
+        tab_id: String,
+        workspace_id: String,
+        insert_index: Option<usize>,
+    },
     SidebarWidth,
     SidebarSection,
     WorkspaceScrollbar {
@@ -1027,6 +1044,8 @@ pub(crate) struct ClientShellState {
     pub(super) pane_scroll_targets: HashMap<String, usize>,
     pub(super) copy_feedback: Option<crate::app::state::CopyFeedback>,
     pub(super) copy_feedback_deadline: Option<std::time::Instant>,
+    /// Fork: a pressed agent row that may still become a drag.
+    pub(super) agent_press: Option<ClientAgentPress>,
     /// Fork: whether the pointer currently sits on a followable link.
     pub(super) pointer_over_link: bool,
     /// Fork: current spinner frame, advanced only while an agent works.
@@ -1187,6 +1206,7 @@ impl ClientShellState {
             pane_scroll_targets: HashMap::new(),
             copy_feedback: None,
             copy_feedback_deadline: None,
+            agent_press: None,
             pointer_over_link: false,
             working_anim_frame: 0,
             next_working_anim_tick: None,
@@ -1329,6 +1349,7 @@ impl ClientShellState {
         self.chrome_drag = None;
         self.workspace_press = None;
         self.tab_press = None;
+        self.agent_press = None;
         self.workspace_scroll = 0;
         self.agent_scroll = 0;
         self.tab_scroll = 0;

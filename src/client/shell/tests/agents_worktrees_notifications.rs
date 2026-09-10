@@ -1496,3 +1496,105 @@ fn focus_on_click_leaves_the_system_toast_to_the_endpoint() {
     let focused = ClientShellConfig::from_config(&config);
     assert!(focused.toast_focus_on_click);
 }
+
+#[test]
+fn dragging_an_agent_row_moves_its_tab() {
+    let mut projection = snapshot();
+    projection.tabs = (1..=2)
+        .map(|number| ClientShellTab {
+            tab_id: format!("tab_{number}"),
+            workspace_id: "ws_1".into(),
+            number,
+            label: number.to_string(),
+            custom_label: false,
+            zoomed: false,
+            focused: number == 1,
+            agent_status: AgentStatus::Idle,
+        })
+        .collect();
+    projection.agents = (1..=2)
+        .map(|number| ClientShellAgent {
+            pane_id: format!("pane_{number}"),
+            workspace_id: "ws_1".into(),
+            tab_id: format!("tab_{number}"),
+            name: None,
+            display_agent: None,
+            agent: None,
+            title: None,
+            terminal_title: None,
+            terminal_title_stripped: None,
+            agent_status: AgentStatus::Idle,
+            state_change_seq: 0,
+            state_labels: Vec::new(),
+            tokens: Vec::new(),
+            focused: number == 1,
+        })
+        .collect();
+
+    let mut config = Config::default();
+    config.ui.drag_reorder = true;
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(projection.clone()));
+    state.set_pane_surface(surface());
+    state.compose(120, 30).expect("composed with two agents");
+
+    let rows = state
+        .hits
+        .agents
+        .iter()
+        .map(|(rect, pane_id)| (*rect, pane_id.clone()))
+        .collect::<Vec<_>>();
+    assert_eq!(rows.len(), 2);
+    let (first, _) = rows[0].clone();
+    let (second, _) = rows[1].clone();
+
+    let event = |kind, column, row| {
+        RawInputEvent::Mouse(MouseEvent {
+            kind,
+            column,
+            row,
+            modifiers: KeyModifiers::empty(),
+        })
+    };
+    state.handle_raw_events(vec![event(
+        MouseEventKind::Down(MouseButton::Left),
+        first.x + 1,
+        first.y,
+    )]);
+    state.handle_raw_events(vec![event(
+        MouseEventKind::Drag(MouseButton::Left),
+        second.x + 1,
+        second.y,
+    )]);
+    let dropped = state.handle_raw_events(vec![event(
+        MouseEventKind::Up(MouseButton::Left),
+        second.x + 1,
+        second.y,
+    )]);
+    let traffic = format!("{:?}{:?}", dropped.requests, dropped.actions);
+    assert!(
+        traffic.contains("TabMove") || traffic.contains("tab.move"),
+        "dropping an agent row moves its tab: {traffic}"
+    );
+    assert!(
+        traffic.contains("insert_index: 1"),
+        "it lands where it was dropped: {traffic}"
+    );
+
+    // Off by default: a press focuses immediately, nothing is held for a drag.
+    let mut plain = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    plain.set_snapshot(Box::new(projection));
+    plain.set_pane_surface(surface());
+    plain.compose(120, 30).expect("composed without drag");
+    let clicked = plain.handle_raw_events(vec![event(
+        MouseEventKind::Down(MouseButton::Left),
+        first.x + 1,
+        first.y,
+    )]);
+    let traffic = format!("{:?}{:?}", clicked.requests, clicked.actions);
+    assert!(
+        traffic.contains("PaneFocus") || traffic.contains("pane.focus"),
+        "without the flag a click focuses on press: {traffic}"
+    );
+    assert!(plain.agent_press.is_none());
+}
