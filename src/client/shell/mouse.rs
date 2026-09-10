@@ -476,7 +476,11 @@ impl ClientShellState {
             .hits
             .workspaces
             .iter()
-            .filter(|hit| hit.endpoint_id == self.active_endpoint_id && !hit.indented)
+            .filter(|hit| {
+                hit.endpoint_id == self.active_endpoint_id
+                    && !hit.indented
+                    && !hit.in_workspace_bar
+            })
             .map(|hit| (Some(hit.workspace_id.clone()), hit.rect.y.saturating_sub(1)))
             .collect::<Vec<_>>();
         let snapshot = self.snapshot.as_deref()?;
@@ -490,7 +494,7 @@ impl ClientShellState {
             .workspaces
             .iter()
             .rev()
-            .find(|hit| hit.endpoint_id == self.active_endpoint_id)?;
+            .find(|hit| hit.endpoint_id == self.active_endpoint_id && !hit.in_workspace_bar)?;
         let last_position = entries.iter().position(|entry| {
             snapshot
                 .workspaces
@@ -1939,7 +1943,9 @@ impl ClientShellState {
                     outcome.repaint = true;
                     return;
                 }
-                if super::contains(self.hits.new_workspace, point) {
+                if super::contains(self.hits.new_workspace, point)
+                    || super::contains(self.hits.workspace_bar_new, point)
+                {
                     self.record_binding(
                         crate::input::KeybindMatch::Action(
                             crate::input::KeybindAction::NewWorkspace,

@@ -590,6 +590,8 @@ mod tests {
             description: Some("safe description".into()),
             width: None,
             height: None,
+            button: None,
+            button_position: crate::config::ButtonPosition::default(),
         }
     }
 

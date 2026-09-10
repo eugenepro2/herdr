@@ -86,6 +86,7 @@ pub(crate) fn render_collapsed_sidebar(
             Style::default().fg(status_color(status, palette)),
         );
         hits.workspaces.push(WorkspaceHit {
+                in_workspace_bar: false,
             rect,
             endpoint_id: ClientEndpointId::Local,
             workspace_id: workspace.workspace_id.clone(),
@@ -327,6 +328,7 @@ pub(crate) fn render_sidebar(
             palette,
         );
         hits.workspaces.push(WorkspaceHit {
+                in_workspace_bar: false,
             rect,
             endpoint_id: ClientEndpointId::Local,
             workspace_id: workspace.workspace_id.clone(),

@@ -384,3 +384,85 @@ fn close_confirmation_error_becomes_client_owned_overlay_and_stable_group_close(
             if params.workspace_id == "ws_1" && params.close_group
     ));
 }
+
+#[test]
+fn workspace_bar_takes_the_top_row_and_switches_spaces_on_click() {
+    let mut snapshot = snapshot();
+    let template = snapshot.workspaces[0].clone();
+    snapshot.workspaces = (1..=2)
+        .map(|number| ClientShellWorkspace {
+            workspace_id: format!("ws_{number}"),
+            number,
+            label: format!("space-{number}"),
+            focused: number == 1,
+            ..template.clone()
+        })
+        .collect();
+    snapshot.agents = vec![ClientShellAgent {
+        pane_id: "pane_1".into(),
+        workspace_id: "ws_2".into(),
+        tab_id: "tab_1".into(),
+        name: None,
+        display_agent: None,
+        agent: None,
+        title: None,
+        terminal_title: None,
+        terminal_title_stripped: None,
+        agent_status: AgentStatus::Blocked,
+        state_change_seq: 0,
+        state_labels: Vec::new(),
+        tokens: Vec::new(),
+        focused: false,
+    }];
+
+    let mut config = Config::default();
+    config.ui.workspace_bar = true;
+    config.ui.workspace_bar_agent_counts = true;
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(snapshot));
+    state.set_pane_surface(surface());
+    let frame = state.compose(80, 20).expect("composed with a workspace bar");
+
+    let layout = state.layout(80, 20);
+    assert_eq!(layout.workspace_bar, Rect::new(0, 0, 80, 1));
+    // The strip pushes the rest of the chrome down and keeps the pane surface below it.
+    assert!(layout.sidebar.y >= 1 && layout.pane_surface.y >= 1);
+
+    let bar_hits = state
+        .hits
+        .workspaces
+        .iter()
+        .filter(|hit| hit.in_workspace_bar)
+        .map(|hit| (hit.rect, hit.workspace_id.clone()))
+        .collect::<Vec<_>>();
+    assert_eq!(bar_hits.len(), 2);
+    assert!(bar_hits.iter().all(|(rect, _)| rect.y == 0));
+    assert!(state.hits.workspace_bar_new.width > 0);
+
+    // `ui.workspace_bar_agent_counts` shows the blocked agent waiting in space two.
+    let top_row = frame.cells[..80]
+        .iter()
+        .map(|cell| cell.symbol.as_str())
+        .collect::<String>();
+    assert!(top_row.contains("space-2 (1)"), "top row: {top_row:?}");
+    assert!(!top_row.contains("space-1 ("), "top row: {top_row:?}");
+
+    let second = bar_hits[1].0;
+    let outcome = state.handle_raw_events(vec![RawInputEvent::Mouse(MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: second.x + 1,
+        row: 0,
+        modifiers: KeyModifiers::empty(),
+    })]);
+    let released = state.handle_raw_events(vec![RawInputEvent::Mouse(MouseEvent {
+        kind: MouseEventKind::Up(MouseButton::Left),
+        column: second.x + 1,
+        row: 0,
+        modifiers: KeyModifiers::empty(),
+    })]);
+    let traffic = format!("{:?}{:?}{:?}{:?}", outcome.requests, outcome.actions, released.requests, released.actions);
+    assert!(
+        traffic.contains("ws_2"),
+        "clicking a strip cell asks the endpoint to focus that workspace: {traffic}"
+    );
+}

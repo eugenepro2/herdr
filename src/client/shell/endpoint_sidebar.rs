@@ -167,6 +167,7 @@ pub(super) fn render_collapsed(
                     .add_modifier(dim),
             );
             hits.workspaces.push(WorkspaceHit {
+                in_workspace_bar: false,
                 rect,
                 endpoint_id: endpoint.endpoint_id.clone(),
                 workspace_id: workspace.workspace_id.clone(),
@@ -454,6 +455,7 @@ pub(super) fn render_expanded(
                     palette,
                 );
                 hits.workspaces.push(WorkspaceHit {
+                in_workspace_bar: false,
                     rect,
                     endpoint_id: endpoint.endpoint_id.clone(),
                     workspace_id: workspace.workspace_id.clone(),

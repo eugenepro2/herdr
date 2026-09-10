@@ -6,12 +6,15 @@ mod overlays;
 pub(in crate::client::shell) mod sidebar;
 #[path = "../shell/tabs.rs"]
 mod tabs;
+#[path = "../shell/workspace_bar.rs"]
+mod workspace_bar;
 
 pub(super) use super::agent_sidebar::{ordered_agent_pane_ids, render_agent_panel};
 pub(super) use super::aggregate_navigation::navigator_rows as client_navigator_rows;
 pub(super) use overlays::{render_client_overlay, render_context_menu, render_global_menu};
 pub(super) use sidebar::{render_collapsed_sidebar, render_sidebar, workspace_entries};
 pub(super) use tabs::{render_tab_bar, tab_bar_status_width};
+use workspace_bar::render_workspace_bar;
 
 pub(in crate::client::shell) fn render_sidebar_background(
     buffer: &mut Buffer,
@@ -238,6 +241,16 @@ pub(super) fn render_shell(
     mut state: ShellRenderState<'_>,
 ) -> ShellHitMap {
     let mut hits = ShellHitMap::default();
+    if layout.workspace_bar.height > 0 {
+        render_workspace_bar(
+            buffer,
+            layout.workspace_bar,
+            snapshot,
+            config,
+            state.active_endpoint_id,
+            &mut hits,
+        );
+    }
     if layout.mobile_header.height > 0 {
         super::mobile::render_mobile_header(
             buffer,
@@ -308,6 +321,7 @@ pub(super) fn render_shell(
         hits.agent_scrollbar = Rect::default();
         hits.agent_sort_toggle = Rect::default();
         hits.new_workspace = Rect::default();
+        hits.workspace_bar_new = Rect::default();
         hits.machines.clear();
         hits.workspaces.clear();
         hits.agents.clear();

@@ -557,6 +557,8 @@ fn popup_command_blocks_underlying_input_until_surface_or_error() {
         description: None,
         width: None,
         height: None,
+        button: None,
+        button_position: crate::config::ButtonPosition::default(),
     };
     let mut projection = snapshot();
     projection
@@ -610,6 +612,8 @@ fn popup_command_blocks_underlying_input_until_surface_or_error() {
         description: None,
         width: None,
         height: None,
+        button: None,
+        button_position: crate::config::ButtonPosition::default(),
     };
     let mut invoke = ClientShellInput::default();
     state.record_binding(crate::input::KeybindMatch::Command(binding), &mut invoke);

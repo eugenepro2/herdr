@@ -81,6 +81,12 @@ pub(crate) struct ClientShellConfig {
     pub(super) agents: crate::config::AgentsSidebarConfig,
     pub(super) agent_panel_sort: crate::config::AgentPanelSortConfig,
     pub(super) status_indicators: crate::config::StatusIndicatorStyle,
+    /// Fork: draw workspaces as a strip above the layout instead of only in the sidebar.
+    pub(super) workspace_bar: bool,
+    /// Fork: leave the row under that strip unpainted.
+    pub(super) workspace_bar_gap: bool,
+    /// Fork: append "(N)" with the agents in a space that want attention.
+    pub(super) workspace_bar_agent_counts: bool,
     pub(super) sound_enabled: bool,
     pub(super) toast_delivery: crate::config::ToastDelivery,
     pub(super) toast_delay_seconds: u64,
@@ -111,6 +117,9 @@ pub(crate) struct ClientShellConfig {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct ClientShellLayout {
+    /// Fork: full-width workspace strip above everything, empty unless
+    /// `ui.workspace_bar` is on.
+    pub workspace_bar: Rect,
     pub sidebar: Rect,
     pub tab_bar: Rect,
     pub mobile_header: Rect,
@@ -160,6 +169,8 @@ pub(super) struct ShellHitMap {
     pub(super) sidebar_section_divider: Rect,
     pub(super) sidebar_toggle: Rect,
     pub(super) new_workspace: Rect,
+    /// Fork: the "+" cell at the end of the workspace strip.
+    pub(super) workspace_bar_new: Rect,
     pub(super) new_tab: Rect,
     pub(super) tab_scroll_left: Rect,
     pub(super) tab_scroll_right: Rect,
@@ -287,6 +298,9 @@ pub(super) struct WorkspaceHit {
     pub(super) endpoint_id: ClientEndpointId,
     pub(super) workspace_id: String,
     pub(super) indented: bool,
+    /// Fork: this cell is in the workspace strip, not the sidebar list. Vertical
+    /// sidebar drag slots must skip it.
+    pub(super) in_workspace_bar: bool,
     pub(super) group_toggle: Option<(Rect, String)>,
 }
 

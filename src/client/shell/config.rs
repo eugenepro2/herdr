@@ -125,6 +125,9 @@ impl ClientShellConfig {
             agents: config.ui.sidebar.agents.clone(),
             agent_panel_sort: config.ui.agent_panel_sort,
             status_indicators: config.ui.status_indicators,
+            workspace_bar: config.ui.workspace_bar,
+            workspace_bar_gap: config.ui.workspace_bar_gap,
+            workspace_bar_agent_counts: config.ui.workspace_bar_agent_counts,
             sound_enabled: config.ui.sound.enabled,
             toast_delivery: config.ui.toast.delivery,
             toast_delay_seconds: config.ui.toast.delay_seconds,
@@ -372,12 +375,25 @@ impl ClientShellConfig {
         if cols <= self.mobile_width_threshold {
             let header_height = rows.min(2);
             return ClientShellLayout {
+                workspace_bar: Rect::default(),
                 sidebar: Rect::default(),
                 tab_bar: Rect::default(),
                 mobile_header: Rect::new(0, 0, cols, header_height),
                 pane_surface: Rect::new(0, header_height, cols, rows.saturating_sub(header_height)),
             };
         }
+
+        // Fork: `ui.workspace_bar` takes the top row for the workspace strip, and
+        // `ui.workspace_bar_gap` leaves the row under it unpainted so the strip reads
+        // apart from the sidebar and tab row. Everything below is laid out in the
+        // remaining rows and shifted down by `body_y` at the end.
+        let bar_gap = u16::from(self.workspace_bar_gap);
+        let (workspace_bar, body_y) = if self.workspace_bar && rows > 2 + bar_gap {
+            (Rect::new(0, 0, cols, 1), 1 + bar_gap)
+        } else {
+            (Rect::default(), 0)
+        };
+        let rows = rows.saturating_sub(body_y);
 
         let sidebar_width = if sidebar_collapsed {
             match self.sidebar_collapsed_mode {
@@ -417,11 +433,16 @@ impl ClientShellConfig {
             ),
         };
 
+        let shift = |rect: Rect| Rect {
+            y: rect.y.saturating_add(body_y),
+            ..rect
+        };
         ClientShellLayout {
-            sidebar: Rect::new(0, 0, sidebar_width, rows),
-            tab_bar,
+            workspace_bar,
+            sidebar: shift(Rect::new(0, 0, sidebar_width, rows)),
+            tab_bar: shift(tab_bar),
             mobile_header: Rect::default(),
-            pane_surface,
+            pane_surface: shift(pane_surface),
         }
     }
 
