@@ -850,6 +850,8 @@ pub struct AppState {
     pub kitty_graphics_enabled: bool,
     pub default_shell: String,
     pub shell_mode: crate::config::ShellModeConfig,
+    /// Fork: follow plain-text file paths in pane output as `file://` links.
+    pub pane_file_links: bool,
     pub new_terminal_cwd: NewTerminalCwdConfig,
     pub pane_scrollback_limit_bytes: usize,
     pub sound: SoundConfig,
@@ -1020,6 +1022,7 @@ impl AppState {
     /// Create an AppState for testing — no channels, no PTYs.
     pub fn test_new() -> Self {
         Self {
+            pane_file_links: false,
             terminals: std::collections::HashMap::new(),
             direct_attach_resize_locks: std::collections::HashSet::new(),
             pane_id_aliases: std::collections::HashMap::new(),

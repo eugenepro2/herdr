@@ -1111,6 +1111,10 @@ impl AppState {
             viewport_row,
             col,
             rt.scroll_metrics(),
+            // Fork: `ui.pane_file_links` makes a plain-text file path a link too.
+            self.pane_file_links
+                .then(|| rt.foreground_cwd())
+                .flatten(),
         )
     }
 }
@@ -1122,6 +1126,7 @@ fn url_at_runtime_cell(
     viewport_row: u16,
     col: u16,
     metrics: Option<crate::pane::ScrollMetrics>,
+    file_link_cwd: Option<std::path::PathBuf>,
 ) -> Option<String> {
     if viewport_row >= area.height || col >= area.width {
         return None;
@@ -1151,7 +1156,15 @@ fn url_at_runtime_cell(
         .find('\n')
         .map_or(visible_text.len(), |idx| logical_cell.byte_index + idx);
     let line = visible_text.get(line_start..line_end)?;
-    url_at_column(line, logical_cell.logical_col).map(str::to_owned)
+    if let Some(url) = url_at_column(line, logical_cell.logical_col) {
+        return Some(url.to_owned());
+    }
+    // Fork: a file path printed as plain text is a link too.
+    crate::app::file_links::file_link_at_column(
+        line,
+        logical_cell.logical_col,
+        file_link_cwd.as_deref(),
+    )
 }
 
 pub(crate) fn safe_web_url(url: &str) -> Option<&str> {
