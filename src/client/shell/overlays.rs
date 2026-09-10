@@ -75,6 +75,11 @@ pub(crate) fn render_client_overlay(
         ClientShellOverlay::WorktreeRemove(v) => {
             worktree_overlays::render_worktree_remove_overlay(b, v, p)
         }
+        ClientShellOverlay::DirPicker(v) => render_dir_picker_overlay(b, v, p).map(|_| {
+            OverlayRender {
+                ..Default::default()
+            }
+        }),
         ClientShellOverlay::ContextMenu(_) | ClientShellOverlay::GlobalMenu(_) => None,
     }
 }
@@ -1188,3 +1193,88 @@ fn render_confirm_close_overlay(
         ..OverlayRender::default()
     })
 }
+
+fn render_dir_picker_overlay(
+    b: &mut Buffer,
+    picker: &super::super::dir_picker::ClientDirPickerOverlay,
+    p: &Palette,
+) -> Option<Rect> {
+    let rows = picker.rows();
+    let popup_height = (rows.len() + 6).clamp(10, 24) as u16;
+    let popup = popup(b.area, 72, popup_height)?;
+    let inner = panel(b, popup, p.accent, p.panel_bg)?;
+    let base = Style::default().bg(p.panel_bg);
+    put_text(
+        b,
+        inner.x,
+        inner.y,
+        inner.width,
+        "new space in…",
+        base.fg(p.text).add_modifier(Modifier::BOLD),
+    );
+    put_text(
+        b,
+        inner.x,
+        inner.y + 1,
+        inner.width,
+        &format!(" {}", picker.dir.display()),
+        base.fg(p.overlay1),
+    );
+    put_text(
+        b,
+        inner.x,
+        inner.y + 2,
+        inner.width,
+        &if picker.query.is_empty() {
+            " / filter".to_owned()
+        } else {
+            format!(" / {}", picker.query)
+        },
+        base.fg(if picker.query.is_empty() {
+            p.overlay0
+        } else {
+            p.text
+        }),
+    );
+    let body = Rect::new(
+        inner.x,
+        inner.y + 3,
+        inner.width,
+        inner.height.saturating_sub(4),
+    );
+    if let Some(error) = &picker.error {
+        put_text(b, body.x, body.y, body.width, error, base.fg(p.red));
+        return Some(popup);
+    }
+    // Keep the highlighted row on screen without a scrollbar: page by body height.
+    let page = usize::from(body.height).max(1);
+    let first = (picker.selected / page) * page;
+    for (offset, row) in rows.iter().skip(first).take(page).enumerate() {
+        let index = first + offset;
+        let y = body.y + offset as u16;
+        let label = match row {
+            super::super::dir_picker::DirPickerRow::Here => " · create here".to_owned(),
+            super::super::dir_picker::DirPickerRow::Up => " ‹ up".to_owned(),
+            super::super::dir_picker::DirPickerRow::Dir(name) => format!("   {name}/"),
+        };
+        let style = if index == picker.selected {
+            Style::default()
+                .fg(panel_contrast_fg(p))
+                .bg(p.accent)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            base.fg(p.text)
+        };
+        put_text(b, body.x, y, body.width, &label, style);
+    }
+    put_text(
+        b,
+        inner.x,
+        inner.bottom().saturating_sub(1),
+        inner.width,
+        " ↑↓ move   → in   ← out   enter create   esc cancel",
+        base.fg(p.overlay0),
+    );
+    Some(popup)
+}
+

@@ -2081,9 +2081,12 @@ impl ClientShellState {
                     self.record_binding(crate::input::KeybindMatch::Command(command), outcome);
                     return;
                 }
-                if super::contains(self.hits.new_workspace, point)
-                    || super::contains(self.hits.workspace_bar_new, point)
-                {
+                // Fork: the strip's own "+" browses folders first.
+                if super::contains(self.hits.workspace_bar_new, point) {
+                    self.open_dir_picker(outcome);
+                    return;
+                }
+                if super::contains(self.hits.new_workspace, point) {
                     self.record_binding(
                         crate::input::KeybindMatch::Action(
                             crate::input::KeybindAction::NewWorkspace,
