@@ -1000,6 +1000,12 @@ pub struct ClientShellCommand {
     pub binding_labels: Vec<String>,
     pub action: ClientShellCommandAction,
     pub description: Option<String>,
+    /// Fork: label of the clickable button this command draws, if any.
+    #[serde(default)]
+    pub button: Option<String>,
+    /// Fork: where that button is drawn.
+    #[serde(default)]
+    pub button_position: crate::config::ButtonPosition,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -2684,6 +2690,8 @@ mod tests {
                 binding_labels: vec!["prefix+z".into()],
                 action: ClientShellCommandAction::Shell,
                 description: Some("deploy".into()),
+                button: None,
+                button_position: crate::config::ButtonPosition::default(),
             }],
         }));
         let encoded = bincode::serde::encode_to_vec(&msg, bincode::config::standard()).unwrap();

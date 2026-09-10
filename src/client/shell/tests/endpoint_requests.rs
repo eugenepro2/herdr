@@ -23,6 +23,8 @@ fn pending_popup() -> (ClientShellState, Vec<ClientShellAction>) {
             binding_labels: binding.bindings.labels(),
             action: crate::protocol::ClientShellCommandAction::Popup,
             description: None,
+            button: None,
+            button_position: crate::config::ButtonPosition::default(),
         });
     state.set_snapshot(Box::new(projection));
     state.set_pane_surface(surface());

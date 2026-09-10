@@ -32,6 +32,70 @@ fn cell_label(
     format!("{} {}{suffix}", workspace.number, workspace.label)
 }
 
+/// Right-aligned clickable buttons for custom commands carrying a `button`
+/// label at `position`. Returns (rect, index into custom_commands), right to left.
+pub(super) fn command_button_hit_areas(
+    config: &ClientShellConfig,
+    area: Rect,
+    position: crate::config::ButtonPosition,
+) -> Vec<(Rect, usize)> {
+    let mut out = Vec::new();
+    if area.width == 0 || area.height == 0 {
+        return out;
+    }
+    let mut right = area.right();
+    for (index, command) in config.keybinds.keybinds.custom_commands.iter().enumerate() {
+        let Some(label) = command.button.as_deref() else {
+            continue;
+        };
+        if command.button_position != position {
+            continue;
+        }
+        let width = display_width(label).saturating_add(2);
+        if width == 0 || right.saturating_sub(area.x) < width {
+            break;
+        }
+        right -= width;
+        out.push((Rect::new(right, area.y, width, 1), index));
+        if right == area.x {
+            break;
+        }
+        right -= 1;
+    }
+    out
+}
+
+/// Draws the buttons `command_button_hit_areas` measured.
+pub(in crate::client::shell) fn render_command_buttons(
+    buffer: &mut Buffer,
+    config: &ClientShellConfig,
+    buttons: &[(Rect, usize)],
+) {
+    let palette = &config.palette;
+    let style = Style::default()
+        .fg(panel_contrast_fg(palette))
+        .bg(palette.overlay1);
+    for (rect, index) in buttons {
+        let Some(label) = config
+            .keybinds
+            .keybinds
+            .custom_commands
+            .get(*index)
+            .and_then(|command| command.button.as_deref())
+        else {
+            continue;
+        };
+        put_text(
+            buffer,
+            rect.x,
+            rect.y,
+            rect.width,
+            &format!(" {label} "),
+            style,
+        );
+    }
+}
+
 /// Cells stop short of the row end so the " + " cell always has room.
 fn cells_area(area: Rect) -> Rect {
     Rect {
@@ -56,7 +120,16 @@ pub(super) fn render_workspace_bar(
     let palette = &config.palette;
     buffer.set_style(area, Style::default().bg(palette.panel_bg));
 
-    let cells = cells_area(area);
+    // Bar buttons are right-aligned; the workspace cells stop before them.
+    let buttons = command_button_hit_areas(config, area, crate::config::ButtonPosition::Bar);
+    let cells_row = match buttons.last() {
+        Some((rect, _)) => Rect {
+            width: rect.x.saturating_sub(area.x),
+            ..area
+        },
+        None => area,
+    };
+    let cells = cells_area(cells_row);
     let right = cells.right();
     let mut x = cells.x;
     let mut last_cell_right = None;
@@ -117,11 +190,16 @@ pub(super) fn render_workspace_bar(
         x = rect.right().saturating_add(1);
     }
 
+    if config.mouse_capture {
+        render_command_buttons(buffer, config, &buttons);
+        hits.command_buttons.extend(buttons);
+    }
+
     if !config.mouse_capture {
         return;
     }
     let new_x = last_cell_right.map_or(cells.x, |right| right.saturating_add(1));
-    if new_x.saturating_add(NEW_WORKSPACE_WIDTH) <= area.right() {
+    if new_x.saturating_add(NEW_WORKSPACE_WIDTH) <= cells_row.right() {
         hits.workspace_bar_new = Rect::new(new_x, area.y, NEW_WORKSPACE_WIDTH, 1);
         put_text(
             buffer,

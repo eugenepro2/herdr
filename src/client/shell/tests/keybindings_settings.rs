@@ -269,6 +269,8 @@ command = "local-only"
             binding_labels: vec!["prefix+c".into(), "prefix+y".into()],
             action: crate::protocol::ClientShellCommandAction::Shell,
             description: Some("loaded endpoint command".into()),
+            button: None,
+            button_position: crate::config::ButtonPosition::default(),
         });
     local_state.set_snapshot(Box::new(local_projection));
     assert_eq!(
@@ -310,6 +312,8 @@ command = "local-only"
             binding_labels: vec!["prefix+c".into(), "prefix+y".into()],
             action: crate::protocol::ClientShellCommandAction::Shell,
             description: Some("loaded endpoint command".into()),
+            button: None,
+            button_position: crate::config::ButtonPosition::default(),
         });
     local_state.mode = ClientShellMode::Prefix;
     local_state.set_snapshot(Box::new(id_only_projection));
@@ -341,6 +345,8 @@ new_tab = "prefix+n"
             binding_labels: vec!["prefix+z".into()],
             action: crate::protocol::ClientShellCommandAction::Shell,
             description: Some("remote command".into()),
+            button: None,
+            button_position: crate::config::ButtonPosition::default(),
         });
     state.set_snapshot(Box::new(projection));
 
@@ -388,6 +394,8 @@ fn custom_binding_invokes_only_the_endpoint_manifest_id() {
             binding_labels: binding.bindings.labels(),
             action: crate::protocol::ClientShellCommandAction::Shell,
             description: None,
+            button: None,
+            button_position: crate::config::ButtonPosition::default(),
         });
     state.set_snapshot(Box::new(projection));
 
@@ -433,6 +441,8 @@ fn plugin_command_carries_client_owned_selection_coordinates() {
             binding_labels: binding.bindings.labels(),
             action: crate::protocol::ClientShellCommandAction::PluginAction,
             description: None,
+            button: None,
+            button_position: crate::config::ButtonPosition::default(),
         });
     state.set_snapshot(Box::new(projection));
     let mut pane_surface = surface();
@@ -679,6 +689,8 @@ fn help_overlay_restores_released_search_scroll_and_custom_binding_behavior() {
             binding_labels: vec!["prefix+z".into()],
             action: crate::protocol::ClientShellCommandAction::PluginAction,
             description: Some("run plugin action".into()),
+            button: None,
+            button_position: crate::config::ButtonPosition::default(),
         });
     state.set_snapshot(Box::new(projection));
     state.set_pane_surface(surface());

@@ -1943,6 +1943,24 @@ impl ClientShellState {
                     outcome.repaint = true;
                     return;
                 }
+                // Fork: a `button` label on a custom command draws a clickable chip.
+                let command_button = self
+                    .hits
+                    .command_buttons
+                    .iter()
+                    .find(|(rect, _)| super::contains(*rect, point))
+                    .and_then(|(_, index)| {
+                        self.config
+                            .keybinds
+                            .keybinds
+                            .custom_commands
+                            .get(*index)
+                            .cloned()
+                    });
+                if let Some(command) = command_button {
+                    self.record_binding(crate::input::KeybindMatch::Command(command), outcome);
+                    return;
+                }
                 if super::contains(self.hits.new_workspace, point)
                     || super::contains(self.hits.workspace_bar_new, point)
                 {

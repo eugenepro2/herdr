@@ -543,3 +543,102 @@ fn working_status_animation_only_runs_while_enabled_and_an_agent_works() {
     assert_eq!(state.next_working_anim_tick, None);
     assert_eq!(state.config.working_anim_frame, None);
 }
+
+#[test]
+fn command_buttons_draw_in_the_strip_and_the_sidebar_footer() {
+    let mut config = Config::default();
+    config.ui.workspace_bar = true;
+    config.ui.sidebar_git_footer = true;
+    config.keys.command = vec![
+        crate::config::CommandKeybindConfig {
+            key: crate::config::BindingConfig::One("prefix+t".into()),
+            command: "tasks-sidebar".into(),
+            action_type: crate::config::CommandKeybindType::Shell,
+            description: None,
+            width: None,
+            height: None,
+            button: Some("задачи".into()),
+            button_position: crate::config::ButtonPosition::Bar,
+        },
+        crate::config::CommandKeybindConfig {
+            key: crate::config::BindingConfig::One("prefix+g".into()),
+            command: "git pull".into(),
+            action_type: crate::config::CommandKeybindType::Pane,
+            description: None,
+            width: None,
+            height: None,
+            button: Some("pull".into()),
+            button_position: crate::config::ButtonPosition::Sidebar,
+        },
+    ];
+
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    let mut projection = snapshot();
+    projection.workspaces[0].branch = Some("custom".into());
+    projection.workspaces[0].git_ahead_behind = Some((2, 3));
+    // The client rebuilds its command list from the endpoint, so the buttons only
+    // survive because they travel on the wire.
+    projection.commands = vec![
+        crate::protocol::ClientShellCommand {
+            command_id: "tasks-sidebar".into(),
+            binding_label: "prefix+t".into(),
+            binding_labels: vec!["prefix+t".into()],
+            action: crate::protocol::ClientShellCommandAction::Shell,
+            description: None,
+            button: Some("задачи".into()),
+            button_position: crate::config::ButtonPosition::Bar,
+        },
+        crate::protocol::ClientShellCommand {
+            command_id: "git pull".into(),
+            binding_label: "prefix+g".into(),
+            binding_labels: vec!["prefix+g".into()],
+            action: crate::protocol::ClientShellCommandAction::Pane,
+            description: None,
+            button: Some("pull".into()),
+            button_position: crate::config::ButtonPosition::Sidebar,
+        },
+    ];
+    state.set_snapshot(Box::new(projection));
+    state.set_pane_surface(surface());
+    let frame = state.compose(100, 24).expect("composed with buttons");
+
+    let layout = state.layout(100, 24);
+    // The footer claims one row for git and one for the sidebar button.
+    assert_eq!(layout.sidebar_footer.height, 2);
+    assert_eq!(layout.sidebar_footer.bottom(), 24);
+    assert_eq!(layout.sidebar.bottom(), layout.sidebar_footer.y);
+
+    let row = |y: usize| {
+        frame.cells[y * 100..(y + 1) * 100]
+            .iter()
+            .map(|cell| cell.symbol.as_str())
+            .collect::<String>()
+    };
+    assert!(row(0).contains("задачи"), "strip: {:?}", row(0));
+    let git_row = row(usize::from(layout.sidebar_footer.y));
+    assert!(git_row.contains("custom"), "git row: {git_row:?}");
+    assert!(git_row.contains("↓3"), "git row: {git_row:?}");
+    assert!(git_row.contains("↑2"), "git row: {git_row:?}");
+    assert!(row(23).contains("pull"), "footer buttons: {:?}", row(23));
+
+    // Both buttons are clickable and reach the endpoint as a command invoke.
+    assert_eq!(state.hits.command_buttons.len(), 2);
+    let bar_button = state
+        .hits
+        .command_buttons
+        .iter()
+        .find(|(rect, _)| rect.y == 0)
+        .expect("strip button")
+        .0;
+    let outcome = state.handle_raw_events(vec![RawInputEvent::Mouse(MouseEvent {
+        kind: MouseEventKind::Down(MouseButton::Left),
+        column: bar_button.x + 1,
+        row: 0,
+        modifiers: KeyModifiers::empty(),
+    })]);
+    let traffic = format!("{:?}{:?}", outcome.requests, outcome.actions);
+    assert!(
+        traffic.contains("tasks-sidebar"),
+        "clicking a button invokes its command: {traffic}"
+    );
+}

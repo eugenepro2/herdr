@@ -124,6 +124,7 @@ impl ClientShellConfig {
             spaces: config.ui.sidebar.spaces.clone(),
             agents: config.ui.sidebar.agents.clone(),
             agent_panel_sort: config.ui.agent_panel_sort,
+            sidebar_git_footer: config.ui.sidebar_git_footer,
             status_indicator_animation: config.ui.status_indicator_animation,
             working_anim_frame: None,
             sidebar_agents_scope: config.ui.sidebar_agents_scope,
@@ -252,8 +253,8 @@ impl ClientShellConfig {
                             description: command.description.clone(),
                             width: None,
                             height: None,
-                            button: None,
-                            button_position: crate::config::ButtonPosition::default(),
+                            button: command.button.clone(),
+                            button_position: command.button_position,
                         })
                     })
                     .collect();
@@ -281,8 +282,8 @@ impl ClientShellConfig {
                         description: command.description.clone(),
                         width: None,
                         height: None,
-                        button: None,
-                        button_position: crate::config::ButtonPosition::default(),
+                        button: command.button.clone(),
+                        button_position: command.button_position,
                     });
             }
         }
@@ -380,6 +381,7 @@ impl ClientShellConfig {
             return ClientShellLayout {
                 workspace_bar: Rect::default(),
                 sidebar: Rect::default(),
+                sidebar_footer: Rect::default(),
                 tab_bar: Rect::default(),
                 mobile_header: Rect::new(0, 0, cols, header_height),
                 pane_surface: Rect::new(0, header_height, cols, rows.saturating_sub(header_height)),
@@ -440,9 +442,24 @@ impl ClientShellConfig {
             y: rect.y.saturating_add(body_y),
             ..rect
         };
+        // Fork: the footer is carved off the bottom before anything measures the
+        // sidebar, so the workspace and agent sections shrink to fit around it.
+        let sidebar = Rect::new(0, 0, sidebar_width, rows);
+        let footer_height = super::render::sidebar_footer_height(self, sidebar_collapsed)
+            .min(sidebar.height / 2);
+        let sidebar_footer = Rect::new(
+            sidebar.x,
+            sidebar.bottom().saturating_sub(footer_height),
+            sidebar.width,
+            footer_height,
+        );
         ClientShellLayout {
             workspace_bar,
-            sidebar: shift(Rect::new(0, 0, sidebar_width, rows)),
+            sidebar: shift(Rect {
+                height: sidebar.height.saturating_sub(footer_height),
+                ..sidebar
+            }),
+            sidebar_footer: shift(sidebar_footer),
             tab_bar: shift(tab_bar),
             mobile_header: Rect::default(),
             pane_surface: shift(pane_surface),

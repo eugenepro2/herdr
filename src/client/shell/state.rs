@@ -80,6 +80,8 @@ pub(crate) struct ClientShellConfig {
     pub(super) spaces: SpacesSidebarConfig,
     pub(super) agents: crate::config::AgentsSidebarConfig,
     pub(super) agent_panel_sort: crate::config::AgentPanelSortConfig,
+    /// Fork: pin the focused space's branch and ahead/behind under the sidebar.
+    pub(super) sidebar_git_footer: bool,
     /// Fork: animate the working indicator like the Claude Code spinner.
     pub(super) status_indicator_animation: bool,
     /// Fork: spinner frame for this compose, `None` while nothing is working.
@@ -129,6 +131,9 @@ pub(super) struct ClientShellLayout {
     /// `ui.workspace_bar` is on.
     pub workspace_bar: Rect,
     pub sidebar: Rect,
+    /// Fork: rows carved off the bottom of the sidebar for the git readout and
+    /// `button_position = "sidebar"` command buttons. Empty unless configured.
+    pub sidebar_footer: Rect,
     pub tab_bar: Rect,
     pub mobile_header: Rect,
     pub pane_surface: Rect,
@@ -179,6 +184,9 @@ pub(super) struct ShellHitMap {
     pub(super) new_workspace: Rect,
     /// Fork: the "+" cell at the end of the workspace strip.
     pub(super) workspace_bar_new: Rect,
+    /// Fork: clickable command buttons, with their index into
+    /// `config.keybinds.keybinds.custom_commands`.
+    pub(super) command_buttons: Vec<(Rect, usize)>,
     pub(super) new_tab: Rect,
     pub(super) tab_scroll_left: Rect,
     pub(super) tab_scroll_right: Rect,

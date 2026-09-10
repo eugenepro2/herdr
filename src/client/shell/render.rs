@@ -8,6 +8,8 @@ pub(in crate::client::shell) mod sidebar;
 mod tabs;
 #[path = "../shell/workspace_bar.rs"]
 mod workspace_bar;
+#[path = "../shell/sidebar_footer.rs"]
+mod sidebar_footer;
 
 pub(super) use super::agent_sidebar::{ordered_agent_pane_ids, render_agent_panel};
 pub(super) use super::aggregate_navigation::navigator_rows as client_navigator_rows;
@@ -15,6 +17,8 @@ pub(super) use overlays::{render_client_overlay, render_context_menu, render_glo
 pub(super) use sidebar::{render_collapsed_sidebar, render_sidebar, workspace_entries};
 pub(super) use tabs::{render_tab_bar, tab_bar_status_width};
 use workspace_bar::render_workspace_bar;
+pub(in crate::client::shell) use sidebar_footer::footer_height as sidebar_footer_height;
+pub(in crate::client::shell) use workspace_bar::render_command_buttons;
 
 pub(in crate::client::shell) fn render_sidebar_background(
     buffer: &mut Buffer,
@@ -260,6 +264,15 @@ pub(super) fn render_shell(
             &mut hits,
         );
     }
+    if layout.sidebar_footer.height > 0 {
+        sidebar_footer::render_sidebar_footer(
+            buffer,
+            layout.sidebar_footer,
+            Some(snapshot),
+            config,
+            &mut hits,
+        );
+    }
     if layout.sidebar.width > 0 {
         if state.endpoints.len() > 1 {
             if state.sidebar_collapsed {
@@ -322,6 +335,7 @@ pub(super) fn render_shell(
         hits.agent_sort_toggle = Rect::default();
         hits.new_workspace = Rect::default();
         hits.workspace_bar_new = Rect::default();
+        hits.command_buttons.clear();
         hits.machines.clear();
         hits.workspaces.clear();
         hits.agents.clear();

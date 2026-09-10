@@ -62,6 +62,8 @@ impl App {
                 binding_labels: entry.binding.bindings.labels(),
                 action: entry.action,
                 description: entry.binding.description.clone(),
+                button: entry.binding.button.clone(),
+                button_position: entry.binding.button_position,
             })
             .collect()
     }
