@@ -264,6 +264,20 @@ pub(super) fn render_shell(
             &mut hits,
         );
     }
+    if layout.sidebar_gutter.width > 0 {
+        // Fork: the rule lives in the reserved gutter, beside both the sidebar and
+        // its footer.
+        for y in layout.sidebar_gutter.y..layout.sidebar_gutter.bottom() {
+            put_text(
+                buffer,
+                layout.sidebar_gutter.x,
+                y,
+                1,
+                "\u{2502}",
+                Style::default().fg(config.palette.surface_dim),
+            );
+        }
+    }
     if layout.sidebar_footer.height > 0 {
         sidebar_footer::render_sidebar_footer(
             buffer,

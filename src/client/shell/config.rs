@@ -124,6 +124,8 @@ impl ClientShellConfig {
             spaces: config.ui.sidebar.spaces.clone(),
             agents: config.ui.sidebar.agents.clone(),
             agent_panel_sort: config.ui.agent_panel_sort,
+            sidebar_divider: config.ui.sidebar_divider,
+            tab_bar_contrast: config.ui.tab_bar_contrast,
             sidebar_agent_close_button: config.ui.sidebar_agent_close_button,
             tab_close_button: config.ui.tab_close_button,
             new_agent_command: config.ui.new_agent_command.clone(),
@@ -386,6 +388,7 @@ impl ClientShellConfig {
                 workspace_bar: Rect::default(),
                 sidebar: Rect::default(),
                 sidebar_footer: Rect::default(),
+                sidebar_gutter: Rect::default(),
                 tab_bar: Rect::default(),
                 mobile_header: Rect::new(0, 0, cols, header_height),
                 pane_surface: Rect::new(0, header_height, cols, rows.saturating_sub(header_height)),
@@ -418,7 +421,12 @@ impl ClientShellConfig {
             sidebar_width.clamp(min, max)
         }
         .min(cols.saturating_sub(1));
-        let main = Rect::new(sidebar_width, 0, cols.saturating_sub(sidebar_width), rows);
+        // Fork: `ui.sidebar_divider` reserves a column between the sidebar and the
+        // pane area; the rule itself is drawn into it by the shell renderer.
+        let gutter_width = u16::from(self.sidebar_divider && sidebar_width > 0)
+            .min(cols.saturating_sub(sidebar_width).saturating_sub(1));
+        let main_x = sidebar_width.saturating_add(gutter_width);
+        let main = Rect::new(main_x, 0, cols.saturating_sub(main_x), rows);
         let show_tab_bar = rows > 1 && !(self.hide_tab_bar_when_single_tab && tab_count == 1);
         let tab_height = u16::from(show_tab_bar);
         let (tab_bar, pane_surface) = match self.tab_bar_position {
@@ -464,6 +472,7 @@ impl ClientShellConfig {
                 ..sidebar
             }),
             sidebar_footer: shift(sidebar_footer),
+            sidebar_gutter: shift(Rect::new(sidebar_width, 0, gutter_width, rows)),
             tab_bar: shift(tab_bar),
             mobile_header: Rect::default(),
             pane_surface: shift(pane_surface),

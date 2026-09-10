@@ -642,3 +642,44 @@ fn command_buttons_draw_in_the_strip_and_the_sidebar_footer() {
         "clicking a button invokes its command: {traffic}"
     );
 }
+
+#[test]
+fn sidebar_divider_reserves_a_gutter_and_tab_contrast_tints_the_row() {
+    let plain = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    let plain_layout = plain.layout(100, 24);
+    assert_eq!(plain_layout.sidebar_gutter.width, 0);
+    assert_eq!(plain_layout.pane_surface.x, plain_layout.sidebar.right());
+
+    let mut config = Config::default();
+    config.ui.sidebar_divider = true;
+    config.ui.tab_bar_contrast = true;
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    state.set_snapshot(Box::new(snapshot()));
+    state.set_pane_surface(surface());
+    let frame = state.compose(100, 24).expect("composed with a divider");
+
+    let layout = state.layout(100, 24);
+    assert_eq!(layout.sidebar_gutter.width, 1);
+    assert_eq!(layout.sidebar_gutter.x, layout.sidebar.right());
+    assert_eq!(layout.pane_surface.x, layout.sidebar_gutter.right());
+
+    let gutter_cell = |y: u16| {
+        frame.cells[usize::from(y) * 100 + usize::from(layout.sidebar_gutter.x)]
+            .symbol
+            .clone()
+    };
+    assert_eq!(gutter_cell(1), "\u{2502}");
+    assert_eq!(gutter_cell(layout.sidebar.bottom() - 1), "\u{2502}");
+
+    // The tab row is tinted apart from the panel background the sidebar uses.
+    let tab_bg = frame.cells[usize::from(layout.tab_bar.y) * 100 + usize::from(layout.tab_bar.right() - 1)].bg;
+    let mut plain_state = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    plain_state.set_snapshot(Box::new(snapshot()));
+    plain_state.set_pane_surface(surface());
+    let plain_frame = plain_state.compose(100, 24).expect("composed plain");
+    let plain_layout = plain_state.layout(100, 24);
+    let plain_bg = plain_frame.cells
+        [usize::from(plain_layout.tab_bar.y) * 100 + usize::from(plain_layout.tab_bar.right() - 1)]
+        .bg;
+    assert_ne!(tab_bg, plain_bg);
+}

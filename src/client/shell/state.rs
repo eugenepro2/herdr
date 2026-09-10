@@ -80,6 +80,10 @@ pub(crate) struct ClientShellConfig {
     pub(super) spaces: SpacesSidebarConfig,
     pub(super) agents: crate::config::AgentsSidebarConfig,
     pub(super) agent_panel_sort: crate::config::AgentPanelSortConfig,
+    /// Fork: reserve a gutter column beside the sidebar and rule it.
+    pub(super) sidebar_divider: bool,
+    /// Fork: tint the tab row apart from the workspace strip.
+    pub(super) tab_bar_contrast: bool,
     /// Fork: draw a close button at the right edge of every sidebar agent row.
     pub(super) sidebar_agent_close_button: bool,
     /// Fork: draw a close button in the right padding of every tab chip.
@@ -142,6 +146,9 @@ pub(super) struct ClientShellLayout {
     /// Fork: rows carved off the bottom of the sidebar for the git readout and
     /// `button_position = "sidebar"` command buttons. Empty unless configured.
     pub sidebar_footer: Rect,
+    /// Fork: one column between the sidebar and the pane area holding a vertical
+    /// rule. Empty unless `ui.sidebar_divider` is on.
+    pub sidebar_gutter: Rect,
     pub tab_bar: Rect,
     pub mobile_header: Rect,
     pub pane_surface: Rect,

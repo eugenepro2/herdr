@@ -4,6 +4,23 @@ const TAB_SCROLL_BUTTON_WIDTH: u16 = 3;
 const MIN_TAB_STRIP_WIDTH: u16 =
     MIN_TAB_WIDTH + NEW_TAB_WIDTH + TAB_SCROLL_BUTTON_WIDTH.saturating_mul(2);
 
+/// Fork: `ui.tab_bar_contrast` tints the tab row halfway to `surface0` so it
+/// reads apart from the workspace strip above it.
+fn tab_bar_bg(config: &ClientShellConfig) -> ratatui::style::Color {
+    use ratatui::style::Color;
+    let palette = &config.palette;
+    if !config.tab_bar_contrast {
+        return palette.panel_bg;
+    }
+    match (palette.panel_bg, palette.surface0) {
+        (Color::Rgb(pr, pg, pb), Color::Rgb(sr, sg, sb)) => {
+            Color::Rgb(pr / 2 + sr / 2, pg / 2 + sg / 2, pb / 2 + sb / 2)
+        }
+        // Reset and indexed colors cannot be blended; keep upstream's background.
+        _ => palette.panel_bg,
+    }
+}
+
 pub(crate) fn render_tab_bar(
     buffer: &mut Buffer,
     area: Rect,
@@ -15,7 +32,7 @@ pub(crate) fn render_tab_bar(
     hits: &mut ShellHitMap,
 ) {
     let palette = &config.palette;
-    buffer.set_style(area, Style::default().bg(palette.panel_bg));
+    buffer.set_style(area, Style::default().bg(tab_bar_bg(config)));
     let tabs = snapshot
         .tabs
         .iter()
