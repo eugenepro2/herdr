@@ -112,7 +112,11 @@ fn agent_rows(
         .flatten()
         .collect::<HashMap<_, _>>();
 
-    super::aggregate_navigation::aggregate_agent_rows(endpoints, config.agent_panel_sort)
+    super::aggregate_navigation::aggregate_agent_rows(
+        endpoints,
+        config.agent_panel_sort,
+        config.sidebar_agents_scope,
+    )
         .into_iter()
         .filter_map(|row| {
             let key = (row.endpoint.endpoint_id.clone(), row.agent.pane_id.clone());

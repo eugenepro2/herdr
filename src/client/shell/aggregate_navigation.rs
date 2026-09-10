@@ -49,10 +49,11 @@ pub(super) struct AggregateAgentTarget {
 pub(super) fn aggregate_agent_rows(
     endpoints: &[ClientShellEndpoint],
     sort: crate::config::AgentPanelSortConfig,
+    scope: crate::config::SidebarAgentsScopeConfig,
 ) -> Vec<AggregateAgentRow<'_>> {
     let mut rows = cached_endpoint_snapshots(endpoints)
         .flat_map(|endpoint| {
-            super::agent_sidebar::ordered_agent_pane_ids(endpoint.snapshot, sort)
+            super::agent_sidebar::ordered_agent_pane_ids(endpoint.snapshot, sort, scope)
                 .into_iter()
                 .filter_map(move |pane_id| {
                     let agent = endpoint
@@ -87,8 +88,9 @@ pub(super) fn aggregate_agent_rows(
 pub(super) fn online_agent_targets(
     endpoints: &[ClientShellEndpoint],
     sort: crate::config::AgentPanelSortConfig,
+    scope: crate::config::SidebarAgentsScopeConfig,
 ) -> Vec<AggregateAgentTarget> {
-    aggregate_agent_rows(endpoints, sort)
+    aggregate_agent_rows(endpoints, sort, scope)
         .into_iter()
         .filter(|row| !row.endpoint.stale())
         .map(|row| AggregateAgentTarget {

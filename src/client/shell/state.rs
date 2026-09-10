@@ -80,6 +80,8 @@ pub(crate) struct ClientShellConfig {
     pub(super) spaces: SpacesSidebarConfig,
     pub(super) agents: crate::config::AgentsSidebarConfig,
     pub(super) agent_panel_sort: crate::config::AgentPanelSortConfig,
+    /// Fork: list every space's agents, or only the focused space's.
+    pub(super) sidebar_agents_scope: crate::config::SidebarAgentsScopeConfig,
     pub(super) status_indicators: crate::config::StatusIndicatorStyle,
     /// Fork: draw workspaces as a strip above the layout instead of only in the sidebar.
     pub(super) workspace_bar: bool,

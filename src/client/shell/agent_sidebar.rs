@@ -20,7 +20,19 @@ pub(super) struct AgentRow {
 pub(super) fn ordered_agent_pane_ids(
     snapshot: &ClientShellSnapshot,
     sort: crate::config::AgentPanelSortConfig,
+    scope: crate::config::SidebarAgentsScopeConfig,
 ) -> Vec<String> {
+    // Fork: `ui.sidebar_agents_scope = "active"` lists only the focused space's agents.
+    let in_scope = |pane_id: &str| match scope {
+        crate::config::SidebarAgentsScopeConfig::All => true,
+        crate::config::SidebarAgentsScopeConfig::Active => snapshot
+            .agents
+            .iter()
+            .find(|agent| agent.pane_id == pane_id)
+            .is_some_and(|agent| {
+                Some(agent.workspace_id.as_str()) == snapshot.focused_workspace_id.as_deref()
+            }),
+    };
     if snapshot.agent_view_label.is_some() {
         return snapshot
             .agent_order
@@ -31,6 +43,7 @@ pub(super) fn ordered_agent_pane_ids(
                     .iter()
                     .any(|agent| agent.pane_id == pane_id.as_str())
             })
+            .filter(|pane_id| in_scope(pane_id))
             .cloned()
             .collect();
     }
@@ -45,6 +58,7 @@ pub(super) fn ordered_agent_pane_ids(
     }
     agents
         .into_iter()
+        .filter(|agent| in_scope(&agent.pane_id))
         .map(|agent| agent.pane_id.clone())
         .collect()
 }
@@ -239,7 +253,7 @@ pub(super) fn agent_rows(
     config: &ClientShellConfig,
     machine: Option<&str>,
 ) -> Vec<AgentRow> {
-    ordered_agent_pane_ids(snapshot, config.agent_panel_sort)
+    ordered_agent_pane_ids(snapshot, config.agent_panel_sort, config.sidebar_agents_scope)
         .into_iter()
         .filter_map(|pane_id| {
             let agent = snapshot

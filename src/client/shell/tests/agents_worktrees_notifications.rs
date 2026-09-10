@@ -1294,3 +1294,55 @@ fn semantic_notifications_use_client_policy_and_stable_navigation_targets() {
     assert!(state.visible_notification.is_none());
     assert_eq!(state.pending_notifications.len(), 1);
 }
+
+#[test]
+fn sidebar_agents_scope_active_lists_only_the_focused_space() {
+    let mut base = snapshot();
+    let template = base.workspaces[0].clone();
+    base.workspaces = (1..=2)
+        .map(|number| ClientShellWorkspace {
+            workspace_id: format!("ws_{number}"),
+            number,
+            label: format!("space-{number}"),
+            focused: number == 1,
+            ..template.clone()
+        })
+        .collect();
+    let agent = |pane: &str, workspace: &str| ClientShellAgent {
+        pane_id: pane.into(),
+        workspace_id: workspace.into(),
+        tab_id: "tab_1".into(),
+        name: None,
+        display_agent: None,
+        agent: None,
+        title: None,
+        terminal_title: None,
+        terminal_title_stripped: None,
+        agent_status: AgentStatus::Idle,
+        state_change_seq: 0,
+        state_labels: Vec::new(),
+        tokens: Vec::new(),
+        focused: false,
+    };
+    base.agents = vec![agent("pane_here", "ws_1"), agent("pane_elsewhere", "ws_2")];
+
+    let mut all = ClientShellState::new(ClientShellConfig::from_config(&Config::default()));
+    all.set_snapshot(Box::new(base.clone()));
+    all.set_pane_surface(surface());
+    all.compose(120, 30).expect("composed with every agent");
+    assert_eq!(all.hits.agents.len(), 2);
+
+    let mut config = Config::default();
+    config.ui.sidebar_agents_scope = crate::config::SidebarAgentsScopeConfig::Active;
+    let mut active = ClientShellState::new(ClientShellConfig::from_config(&config));
+    active.set_snapshot(Box::new(base));
+    active.set_pane_surface(surface());
+    active.compose(120, 30).expect("composed with the active scope");
+    let listed = active
+        .hits
+        .agents
+        .iter()
+        .map(|(_, pane_id)| pane_id.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(listed, vec!["pane_here"]);
+}
