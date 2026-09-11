@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 mod agent_view;
 mod agents;
 mod env;
+mod fs_dirs;
 mod integrations;
 mod layouts;
 mod pane_graphics;
@@ -1127,6 +1128,7 @@ impl App {
                 return self.handle_workspace_close(request.id, target)
             }
             Method::WorktreeList(params) => return self.handle_worktree_list(request.id, params),
+            Method::FsListDirs(params) => return self.handle_fs_list_dirs(request.id, params),
             Method::WorktreeCreate(params) => {
                 let _ = params;
                 return responses::encode_error(

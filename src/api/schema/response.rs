@@ -66,6 +66,11 @@ pub enum ResponseResult {
         source: WorktreeSourceInfo,
         worktrees: Vec<WorktreeInfo>,
     },
+    // Fork: answer to `fs.list_dirs`; `path` is the folder actually listed.
+    DirList {
+        path: String,
+        dirs: Vec<String>,
+    },
     WorktreeCreated {
         workspace: WorkspaceInfo,
         tab: TabInfo,

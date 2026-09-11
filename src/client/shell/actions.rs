@@ -925,6 +925,9 @@ impl ClientShellState {
             | PendingEndpointKind::IntegrationInstall) => {
                 return self.handle_settings_endpoint_result(kind, result);
             }
+            PendingEndpointKind::DirList => {
+                return (self.receive_dir_list(result), Vec::new());
+            }
             kind => {
                 let mut outcome = ClientShellInput::default();
                 let repaint = self.handle_worktree_endpoint_result(kind, result, &mut outcome);

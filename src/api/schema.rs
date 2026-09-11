@@ -4,6 +4,7 @@ pub mod agents;
 pub mod commands;
 pub mod common;
 pub mod events;
+pub mod fs;
 pub mod integrations;
 pub mod panes;
 pub mod plugins;
@@ -18,6 +19,7 @@ pub use agents::*;
 pub use commands::*;
 pub use common::*;
 pub use events::*;
+pub use fs::*;
 pub use integrations::*;
 pub use panes::*;
 pub use plugins::*;
@@ -99,6 +101,9 @@ pub enum Method {
     WorktreeOpen(WorktreeOpenParams),
     #[serde(rename = "worktree.remove")]
     WorktreeRemove(WorktreeRemoveParams),
+    // Fork: the workspace strip's folder browser walks the endpoint's disks.
+    #[serde(rename = "fs.list_dirs")]
+    FsListDirs(FsListDirsParams),
     #[serde(rename = "tab.create")]
     TabCreate(TabCreateParams),
     #[serde(rename = "tab.list")]

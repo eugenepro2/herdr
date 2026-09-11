@@ -759,6 +759,8 @@ impl ClientShellOverlay {
 #[derive(Debug)]
 pub(super) enum PendingEndpointKind {
     Generic,
+    /// Fork: a folder listing for the workspace strip's folder browser.
+    DirList,
     ProductAnnouncementDismiss {
         version: String,
         id: String,

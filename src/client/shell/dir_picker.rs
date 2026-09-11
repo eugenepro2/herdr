@@ -1,12 +1,10 @@
 //! Fork: the folder browser behind the workspace strip's "+" button.
 //!
-//! It walks this machine's filesystem, so it is offered for the Local endpoint
-//! only; on a saved SSH machine the "+" falls back to upstream's plain new
-//! workspace, whose cwd the endpoint picks for itself.
-// ponytail: a remote browser needs a directory-listing method on the endpoint;
-// add one if browsing a saved machine's disks ever matters.
+//! Folders come from the endpoint (`fs.list_dirs`), so it walks the disks of
+//! whichever machine the space will live on — Local or a saved SSH machine.
+//! A server without that method keeps upstream's plain new workspace.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use super::*;
 
@@ -29,42 +27,50 @@ pub(super) struct ClientDirPickerOverlay {
     pub(super) query: String,
     pub(super) selected: usize,
     pub(super) error: Option<String>,
+    /// A listing is on its way; keys wait for it so they act on what is shown.
+    pub(super) loading: bool,
+    /// Folder to highlight once the pending listing arrives (the one just left).
+    land_on: Option<String>,
 }
 
 impl ClientDirPickerOverlay {
     pub(super) fn open(dir: PathBuf) -> Self {
-        let mut state = Self {
+        Self {
             dir,
             entries: Vec::new(),
             query: String::new(),
             selected: 0,
             error: None,
-        };
-        state.reload();
-        state
+            loading: true,
+            land_on: None,
+        }
     }
 
-    fn reload(&mut self) {
+    /// Show a listing that arrived from the endpoint.
+    pub(super) fn show(&mut self, dir: PathBuf, entries: Vec<String>) {
+        self.dir = dir;
+        self.entries = entries;
         self.query.clear();
-        self.selected = 0;
         self.error = None;
-        // ponytail: plain read_dir, no caching; a home directory listing is milliseconds.
-        match std::fs::read_dir(&self.dir) {
-            Ok(read) => {
-                let mut names: Vec<String> = read
-                    .filter_map(Result::ok)
-                    .filter(|entry| entry.path().is_dir())
-                    .filter_map(|entry| entry.file_name().into_string().ok())
-                    .filter(|name| !name.starts_with('.'))
-                    .collect();
-                names.sort_by_key(|name| name.to_lowercase());
-                self.entries = names;
-            }
-            Err(err) => {
-                self.entries.clear();
-                self.error = Some(err.to_string());
+        self.loading = false;
+        self.selected = 0;
+        // Land on the directory we just left so ←/→ retrace the same path.
+        if let Some(leaving) = self.land_on.take() {
+            if let Some(idx) = self
+                .rows()
+                .iter()
+                .position(|row| *row == DirPickerRow::Dir(leaving.clone()))
+            {
+                self.selected = idx;
             }
         }
+    }
+
+    /// The listing failed; the folder shown before stays behind the error.
+    pub(super) fn fail(&mut self, error: String) {
+        self.error = Some(error);
+        self.loading = false;
+        self.land_on = None;
     }
 
     /// Visible rows: "create here", "up", then the filtered subdirectories.
@@ -111,41 +117,25 @@ impl ClientDirPickerOverlay {
         popped
     }
 
-    /// Descend into the highlighted row; returns false when it is not navigable.
-    pub(super) fn descend(&mut self) -> bool {
+    /// Folder to list when walking into the highlighted row; None when it is
+    /// not navigable.
+    pub(super) fn descend(&mut self) -> Option<PathBuf> {
         match self.selected_row() {
-            Some(DirPickerRow::Dir(name)) => {
-                self.dir = self.dir.join(name);
-                self.reload();
-                true
-            }
+            Some(DirPickerRow::Dir(name)) => Some(self.dir.join(name)),
             Some(DirPickerRow::Up) => self.ascend(),
-            _ => false,
+            _ => None,
         }
     }
 
-    pub(super) fn ascend(&mut self) -> bool {
-        let Some(parent) = self.dir.parent().map(Path::to_path_buf) else {
-            return false;
-        };
-        let leaving = self
+    /// Parent folder to list, remembering which folder to land back on.
+    pub(super) fn ascend(&mut self) -> Option<PathBuf> {
+        let parent = self.dir.parent()?.to_path_buf();
+        self.land_on = self
             .dir
             .file_name()
             .and_then(|name| name.to_str())
             .map(str::to_string);
-        self.dir = parent;
-        self.reload();
-        // Land on the directory we just left so ←/→ retrace the same path.
-        if let Some(leaving) = leaving {
-            if let Some(idx) = self
-                .rows()
-                .iter()
-                .position(|row| *row == DirPickerRow::Dir(leaving.clone()))
-            {
-                self.selected = idx;
-            }
-        }
-        true
+        Some(parent)
     }
 
     /// Directory a workspace should be created in, or None when nothing is picked.
@@ -159,17 +149,18 @@ impl ClientDirPickerOverlay {
 }
 
 impl ClientShellState {
-    /// Fork: the workspace strip's "+" browses folders on this machine. A saved
-    /// SSH machine has no browser, so there it keeps upstream's plain new
-    /// workspace.
+    /// Fork: the workspace strip's "+" browses the endpoint's folders. A server
+    /// that cannot list them keeps upstream's plain new workspace.
     pub(super) fn open_dir_picker(&mut self, outcome: &mut ClientShellInput) {
-        if !self.active_endpoint_id.is_local() {
+        let probe = crate::api::schema::Method::FsListDirs(Default::default());
+        if !self.supports_endpoint_method(&probe) {
             self.record_binding(
                 crate::input::KeybindMatch::Action(crate::input::KeybindAction::NewWorkspace),
                 outcome,
             );
             return;
         }
+        // The focused space's cwd lives on the endpoint; None lets it pick home.
         let start = self
             .snapshot
             .as_deref()
@@ -178,15 +169,44 @@ impl ClientShellState {
                     .workspaces
                     .iter()
                     .find(|workspace| workspace.focused)
-                    .map(|workspace| PathBuf::from(&workspace.new_workspace_cwd))
+                    .map(|workspace| workspace.new_workspace_cwd.clone())
             })
-            .filter(|dir| dir.is_dir())
-            .or_else(|| std::env::var_os("HOME").map(PathBuf::from))
-            .unwrap_or_else(|| PathBuf::from("/"));
+            .filter(|cwd| !cwd.is_empty());
         self.overlay = Some(ClientShellOverlay::DirPicker(ClientDirPickerOverlay::open(
-            start,
+            start.clone().map(PathBuf::from).unwrap_or_default(),
         )));
+        self.request_dir_list(start, outcome);
         outcome.repaint = true;
+    }
+
+    fn request_dir_list(&mut self, path: Option<String>, outcome: &mut ClientShellInput) {
+        let sent = self.push_endpoint_method_with_kind(
+            crate::api::schema::Method::FsListDirs(crate::api::schema::FsListDirsParams { path }),
+            PendingEndpointKind::DirList,
+            outcome,
+        );
+        if !sent {
+            if let Some(ClientShellOverlay::DirPicker(picker)) = self.overlay.as_mut() {
+                picker.fail("the machine is not ready".to_owned());
+            }
+        }
+    }
+
+    pub(super) fn receive_dir_list(
+        &mut self,
+        result: Result<crate::api::schema::ResponseResult, ClientShellEndpointError>,
+    ) -> bool {
+        let Some(ClientShellOverlay::DirPicker(picker)) = self.overlay.as_mut() else {
+            return false;
+        };
+        match result {
+            Ok(crate::api::schema::ResponseResult::DirList { path, dirs }) => {
+                picker.show(PathBuf::from(path), dirs);
+            }
+            Ok(_) => picker.fail("the machine returned an unexpected folder listing".to_owned()),
+            Err(error) => picker.fail(error.message),
+        }
+        true
     }
 
     pub(super) fn handle_dir_picker_key(
@@ -197,49 +217,67 @@ impl ClientShellState {
         let Some(ClientShellOverlay::DirPicker(picker)) = self.overlay.as_mut() else {
             return;
         };
-        match key.code {
-            KeyCode::Esc => {
-                self.overlay = None;
+        if matches!(key.code, KeyCode::Esc) {
+            self.overlay = None;
+            outcome.repaint = true;
+            return;
+        }
+        if picker.loading {
+            return;
+        }
+        // The next key dismisses a shown error; the folder behind it stays.
+        if picker.error.take().is_some() {
+            outcome.repaint = true;
+            return;
+        }
+        let target = match key.code {
+            KeyCode::Up => {
+                picker.move_prev();
+                None
             }
-            KeyCode::Up => picker.move_prev(),
-            KeyCode::Down => picker.move_next(),
-            KeyCode::Right => {
-                picker.descend();
+            KeyCode::Down => {
+                picker.move_next();
+                None
             }
-            KeyCode::Left => {
-                picker.ascend();
-            }
+            KeyCode::Right => picker.descend(),
+            KeyCode::Left => picker.ascend(),
             KeyCode::Backspace => {
-                if !picker.pop_query() {
-                    picker.ascend();
+                if picker.pop_query() {
+                    None
+                } else {
+                    picker.ascend()
                 }
             }
-            KeyCode::Enter => {
-                let chosen = picker.chosen_path();
-                match chosen {
-                    Some(dir) => {
-                        self.overlay = None;
-                        self.push_endpoint_method(
-                            crate::api::schema::Method::WorkspaceCreate(
-                                crate::api::schema::WorkspaceCreateParams {
-                                    source_workspace_id: None,
-                                    cwd: Some(dir.display().to_string()),
-                                    focus: true,
-                                    label: None,
-                                    env: Default::default(),
-                                },
-                            ),
-                            outcome,
-                        );
-                    }
-                    // "up" is not a destination; Enter walks out instead.
-                    None => {
-                        picker.ascend();
-                    }
+            KeyCode::Enter => match picker.chosen_path() {
+                Some(dir) => {
+                    self.overlay = None;
+                    self.push_endpoint_method(
+                        crate::api::schema::Method::WorkspaceCreate(
+                            crate::api::schema::WorkspaceCreateParams {
+                                source_workspace_id: None,
+                                cwd: Some(dir.display().to_string()),
+                                focus: true,
+                                label: None,
+                                env: Default::default(),
+                            },
+                        ),
+                        outcome,
+                    );
+                    outcome.repaint = true;
+                    return;
                 }
+                // "up" is not a destination; Enter walks out instead.
+                None => picker.ascend(),
+            },
+            KeyCode::Char(ch) => {
+                picker.push_query(ch);
+                None
             }
-            KeyCode::Char(ch) => picker.push_query(ch),
-            _ => {}
+            _ => None,
+        };
+        if let Some(dir) = target {
+            picker.loading = true;
+            self.request_dir_list(Some(dir.display().to_string()), outcome);
         }
         outcome.repaint = true;
     }
@@ -249,21 +287,13 @@ impl ClientShellState {
 mod tests {
     use super::*;
 
-    fn temp_tree() -> PathBuf {
-        let root = std::env::temp_dir().join(format!("herdr-dir-picker-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&root);
-        std::fs::create_dir_all(root.join("beta")).expect("beta");
-        std::fs::create_dir_all(root.join("alpha")).expect("alpha");
-        std::fs::create_dir_all(root.join(".hidden")).expect("hidden");
-        std::fs::write(root.join("file.txt"), "x").expect("file");
-        root
-    }
-
     #[test]
-    fn lists_sorted_subdirs_and_walks_in_and_out() {
-        let root = temp_tree();
+    fn walks_in_and_out_of_listings_from_the_endpoint() {
+        let root = PathBuf::from("/srv/code");
         let mut picker = ClientDirPickerOverlay::open(root.clone());
-        assert_eq!(picker.entries, vec!["alpha".to_owned(), "beta".to_owned()]);
+        assert!(picker.loading);
+        picker.show(root.clone(), vec!["alpha".to_owned(), "beta".to_owned()]);
+        assert!(!picker.loading);
         assert_eq!(
             picker.rows(),
             vec![
@@ -279,11 +309,11 @@ mod tests {
 
         picker.move_next();
         picker.move_next();
-        assert!(picker.descend());
-        assert_eq!(picker.dir, root.join("alpha"));
+        assert_eq!(picker.descend(), Some(root.join("alpha")));
+        picker.show(root.join("alpha"), Vec::new());
         // Walking out lands back on the folder just left.
-        assert!(picker.ascend());
-        assert_eq!(picker.dir, root);
+        assert_eq!(picker.ascend(), Some(root.clone()));
+        picker.show(root.clone(), vec!["alpha".to_owned(), "beta".to_owned()]);
         assert_eq!(picker.selected_row(), Some(DirPickerRow::Dir("alpha".into())));
 
         picker.push_query('b');
@@ -296,6 +326,9 @@ mod tests {
             ]
         );
 
-        let _ = std::fs::remove_dir_all(&root);
+        // A failed listing keeps the folder shown before it.
+        picker.fail("permission denied".to_owned());
+        assert_eq!(picker.dir, root);
+        assert_eq!(picker.error.as_deref(), Some("permission denied"));
     }
 }
