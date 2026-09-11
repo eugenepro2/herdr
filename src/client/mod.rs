@@ -94,7 +94,9 @@ use clipboard_images::{
 #[cfg(windows)]
 use clipboard_images::{read_image_file_from_client_events, should_bridge_clipboard_image_events};
 #[cfg(unix)]
-use clipboard_images::{read_image_file_from_terminal_drop, should_bridge_clipboard_image_paste};
+use clipboard_images::{
+    read_image_file_from_terminal_drop, should_bridge_clipboard_image_paste, smart_paste_input,
+};
 pub use errors::ClientError;
 #[cfg(test)]
 use frame_output::{clear_received_kitty_graphics, kitty_graphics_image_ids};
@@ -725,6 +727,16 @@ async fn run_client_loop(
                     write_stream.active_id(),
                     write_stream.active_surface_available(),
                 );
+                let data = if state.shell.as_ref().is_some_and(|shell| shell.smart_paste()) {
+                    smart_paste_input(
+                        data,
+                        image_bridge_active,
+                        state.remote_image_paste_key,
+                        crate::platform::read_clipboard_text,
+                    )
+                } else {
+                    data
+                };
                 if state.shell.is_some() {
                     if will_query_host_cell_size {
                         let events = crate::raw_input::parse_raw_input_bytes_sync(&data);

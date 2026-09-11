@@ -1030,6 +1030,9 @@ pub struct UiConfig {
     pub new_agent_command: String,
     /// Right-click menu entries for the "+" button. Empty (default) = no menu.
     pub new_agent_menu: Vec<NewAgentMenuEntry>,
+    /// Fork: `keys.remote_image_paste` pastes whatever the local clipboard holds —
+    /// text as a bracketed paste, an image as before. Default: false.
+    pub smart_paste: bool,
     /// Expanded sidebar row composition.
     pub sidebar: SidebarConfig,
     /// Accent color for highlights, borders, and navigation UI.
@@ -1269,6 +1272,7 @@ impl Default for UiConfig {
             drag_reorder: false,
             new_agent_command: String::new(),
             new_agent_menu: Vec::new(),
+            smart_paste: false,
             sidebar: SidebarConfig::default(),
             accent: "cyan".into(),
             toast: ToastConfig::default(),

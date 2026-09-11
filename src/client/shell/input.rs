@@ -953,6 +953,10 @@ impl ClientShellState {
             .and_then(|snapshot| snapshot.focused_pane_id.clone())
     }
 
+    pub(crate) fn smart_paste(&self) -> bool {
+        self.config.smart_paste
+    }
+
     pub(crate) fn clipboard_image_target(
         &self,
     ) -> Option<crate::protocol::ClientClipboardImageTarget> {

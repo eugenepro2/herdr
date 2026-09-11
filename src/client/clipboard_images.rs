@@ -88,6 +88,39 @@ pub(super) fn should_bridge_clipboard_image_paste(
     )
 }
 
+/// Fork: `ui.smart_paste`. The image paste key pastes whatever the local clipboard
+/// holds: text becomes a bracketed paste; with no text the key stays for the image
+/// bridge (remote), or turns into a plain ctrl+v so a local agent reads the image
+/// from the clipboard itself.
+#[cfg(unix)]
+pub(super) fn smart_paste_input(
+    data: Vec<u8>,
+    image_bridge_active: bool,
+    paste_key: Option<(crossterm::event::KeyCode, crossterm::event::KeyModifiers)>,
+    read_text: impl FnOnce() -> Option<String>,
+) -> Vec<u8> {
+    let Some(paste_key) = paste_key else {
+        return data;
+    };
+    let events = crate::raw_input::parse_raw_input_bytes_sync(&data);
+    let pressed = matches!(
+        events.as_slice(),
+        [crate::raw_input::RawInputEvent::Key(key)]
+            if key.kind == crossterm::event::KeyEventKind::Press
+                && crate::config::terminal_key_matches_combo(key, paste_key)
+    );
+    if !pressed {
+        return data;
+    }
+    // ESC can't be pasted: an embedded "\x1b[201~" would end the paste early and
+    // type the rest into the pane as keys.
+    match read_text().map(|text| text.replace('\x1b', "")) {
+        Some(text) if !text.is_empty() => format!("\x1b[200~{text}\x1b[201~").into_bytes(),
+        _ if image_bridge_active => data,
+        _ => vec![0x16],
+    }
+}
+
 #[cfg(windows)]
 pub(super) fn should_bridge_clipboard_image_events(
     events: &[ClientInputEvent],

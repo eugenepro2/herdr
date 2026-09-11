@@ -178,6 +178,26 @@ fn image_bridge_follows_the_selected_remote_endpoint() {
 
 #[cfg(unix)]
 #[test]
+fn smart_paste_key_pastes_text_and_leaves_images_to_the_bridge() {
+    let cmd_v = crate::config::parse_key_combo("super+v").unwrap();
+    let key = b"\x1b[118;9u".to_vec();
+    let text = || Some("hi\x1b[201~there".to_string());
+
+    assert_eq!(
+        smart_paste_input(key.clone(), true, Some(cmd_v), text),
+        b"\x1b[200~hi[201~there\x1b[201~".to_vec()
+    );
+    assert_eq!(smart_paste_input(key.clone(), true, Some(cmd_v), || None), key);
+    assert_eq!(
+        smart_paste_input(key.clone(), false, Some(cmd_v), || None),
+        vec![0x16]
+    );
+    assert_eq!(smart_paste_input(b"v".to_vec(), true, Some(cmd_v), text), b"v");
+    assert_eq!(smart_paste_input(key.clone(), true, None, text), key);
+}
+
+#[cfg(unix)]
+#[test]
 fn clipboard_image_paste_bridge_triggers_on_configured_key_and_empty_paste() {
     let ctrl_v = crate::config::parse_key_combo("ctrl+v").unwrap();
     assert!(should_bridge_clipboard_image_paste(

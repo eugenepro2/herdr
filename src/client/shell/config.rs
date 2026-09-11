@@ -133,6 +133,7 @@ impl ClientShellConfig {
             sidebar_agent_close_button: config.ui.sidebar_agent_close_button,
             tab_close_button: config.ui.tab_close_button,
             new_agent_command: config.ui.new_agent_command.clone(),
+            smart_paste: config.ui.smart_paste,
             new_agent_menu: config.ui.new_agent_menu.clone(),
             sidebar_git_footer: config.ui.sidebar_git_footer,
             status_indicator_animation: config.ui.status_indicator_animation,

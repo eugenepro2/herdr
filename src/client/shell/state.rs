@@ -93,6 +93,8 @@ pub(crate) struct ClientShellConfig {
     pub(super) tab_close_button: bool,
     /// Fork: command the agent panel "+" button runs in a new tab. Empty hides it.
     pub(super) new_agent_command: String,
+    /// Fork: `ui.smart_paste` — the image paste key pastes clipboard text too.
+    pub(super) smart_paste: bool,
     /// Fork: right-click entries for that button. Empty means no menu.
     pub(super) new_agent_menu: Vec<crate::config::NewAgentMenuEntry>,
     /// Fork: pin the focused space's branch and ahead/behind under the sidebar.
