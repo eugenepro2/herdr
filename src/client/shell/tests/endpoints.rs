@@ -1482,3 +1482,35 @@ fn navigator_foreign_tab_selection_keeps_the_tab_target() {
         }] if activated == &endpoint_id && tab_id == "tab_1"
     ));
 }
+
+#[test]
+fn workspace_bar_leaves_only_machine_rows_in_the_machines_section() {
+    let mut config = Config::default();
+    config.ui.workspace_bar = true;
+    let mut state = ClientShellState::new(ClientShellConfig::from_config(&config));
+    let profile = remote_profile();
+    let endpoint_id = ClientEndpointId::Ssh(profile.id.clone());
+    state.set_endpoint_catalog(&[profile]);
+    state.set_endpoint_status(&endpoint_id, ClientEndpointStatus::Online);
+    state.set_snapshot(Box::new(snapshot()));
+    state.set_pane_surface(surface());
+    let mut remote = snapshot();
+    remote.boot_id = "remote-boot".into();
+    remote.workspaces[0].label = "remote-workspace".into();
+    state.set_endpoint_snapshot(&endpoint_id, Box::new(remote));
+
+    let frame = state.compose(100, 30).unwrap();
+    let text = frame
+        .to_ratatui_buffer()
+        .unwrap()
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect::<String>();
+
+    assert!(!text.contains("remote-workspace"));
+    assert_eq!(state.hits.machines.len(), 2);
+    assert!(state.hits.workspaces.iter().all(|hit| hit.in_workspace_bar));
+    let machines = &state.hits.machines;
+    assert_eq!(machines[1].rect.y, machines[0].rect.y + 1);
+}

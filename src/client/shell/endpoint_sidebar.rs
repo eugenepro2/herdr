@@ -230,10 +230,18 @@ pub(super) fn render_expanded(
     } else {
         Rect::new(area.right().saturating_sub(1), area.y, 1, area.height)
     };
-    let (workspace_area, detail_area) =
-        crate::ui::expanded_sidebar_sections(area, state.sidebar_section_split);
-    hits.sidebar_section_divider =
-        crate::ui::sidebar_section_divider_rect(area, state.sidebar_section_split);
+    // Fork: with `ui.workspace_bar` the spaces already sit in the top strip, so the
+    // machines section keeps only the machine rows and shrinks to fit them.
+    let (workspace_area, detail_area) = if config.workspace_bar {
+        compact_machine_sections(area, state.endpoints.len())
+    } else {
+        crate::ui::expanded_sidebar_sections(area, state.sidebar_section_split)
+    };
+    hits.sidebar_section_divider = if config.workspace_bar {
+        Rect::default()
+    } else {
+        crate::ui::sidebar_section_divider_rect(area, state.sidebar_section_split)
+    };
     put_text(
         buffer,
         workspace_area.x,
@@ -257,7 +265,7 @@ pub(super) fn render_expanded(
     let mut rows = Vec::new();
     for (endpoint_index, endpoint) in state.endpoints.iter().enumerate() {
         rows.push(Row::Endpoint(endpoint_index));
-        if state.collapsed_endpoints.contains(&endpoint.endpoint_id) {
+        if config.workspace_bar || state.collapsed_endpoints.contains(&endpoint.endpoint_id) {
             continue;
         }
         if let Some(snapshot) = endpoint.snapshot.as_deref() {
@@ -371,7 +379,8 @@ pub(super) fn render_expanded(
                     rect,
                     marker,
                     endpoint,
-                    collapsed && &endpoint.endpoint_id == state.active_endpoint_id,
+                    (collapsed || config.workspace_bar)
+                        && &endpoint.endpoint_id == state.active_endpoint_id,
                     palette,
                 );
                 hits.machines.push(MachineHit {
@@ -534,6 +543,22 @@ pub(super) fn render_expanded(
         "«",
         Style::default().fg(palette.overlay0),
     );
+}
+
+/// Fork: header, one row per machine, then the "new · menu" footer; the agents
+/// section takes the rest.
+fn compact_machine_sections(area: Rect, machines: usize) -> (Rect, Rect) {
+    let content = Rect::new(area.x, area.y, area.width.saturating_sub(1), area.height);
+    let height = (WORKSPACE_HEADER_ROWS as usize + machines + 1).min(content.height as usize) as u16;
+    (
+        Rect { height, ..content },
+        Rect::new(
+            content.x,
+            content.y + height,
+            content.width,
+            content.height - height,
+        ),
+    )
 }
 
 fn active_endpoint_label<'a>(state: &'a ShellRenderState<'_>) -> &'a str {
